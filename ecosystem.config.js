@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "acceleron-champ-tool",
 
-      cwd: "/srv/www/htdocs/Acceleron-Champ",
+      cwd: "/srv/www/htdocs/acceleron_champ",
 
       script: "server/dist/index.js",
 
