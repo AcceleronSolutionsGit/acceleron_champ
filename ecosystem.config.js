@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "champ-spot-tool",
+      name: "acceleron-champ-tool",
 
       cwd: "/srv/www/htdocs/Acceleron-Champ",
 
