@@ -68,7 +68,7 @@ export function setUnauthorizedHandler(fn: (() => void) | null): void {
   onUnauthorized = fn
 }
 
-/** API base path — resolves to /champ/api in production (Vite sets BASE_URL to
+/** API base path — resolves to /acceleron_champ/api in production (Vite sets BASE_URL to
  *  the `base` in vite.config.ts) and to /api in development (base defaults to /). */
 const API_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/api`
 

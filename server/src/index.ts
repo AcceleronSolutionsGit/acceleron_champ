@@ -48,10 +48,10 @@ async function main(): Promise<void> {
   const app = express()
   app.set('trust proxy', 1) // behind an ALB / App Runner in production
 
-  // Strip optional /champ base prefix for API and webhook routes
+  // Strip optional /acceleron_champ base prefix for API and webhook routes
   app.use((req, _res, next) => {
-    if (req.url.startsWith('/champ/api') || req.url.startsWith('/champ/webhook')) {
-      req.url = req.url.slice('/champ'.length)
+    if (req.url.startsWith('/acceleron_champ/api') || req.url.startsWith('/acceleron_champ/webhook')) {
+      req.url = req.url.slice('/acceleron_champ'.length)
     }
     next()
   })

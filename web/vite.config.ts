@@ -5,18 +5,18 @@ import react from '@vitejs/plugin-react'
 // application service on :8080. Production: `vite build` emits web/dist,
 // which the server serves as static files (see server/src/index.ts).
 export default defineConfig({
-  base: '/champ/',
+  base: '/acceleron_champ/',
   plugins: [react()],
   server: {
     port: 5173,
     proxy: {
-      '/champ/api': {
+      '/acceleron_champ/api': {
         target: 'http://localhost:8080',
-        rewrite: (p) => p.replace(/^\/champ/, ''),
+        rewrite: (p) => p.replace(/^\/acceleron_champ/, ''),
       },
-      '/champ/webhook': {
+      '/acceleron_champ/webhook': {
         target: 'http://localhost:8080',
-        rewrite: (p) => p.replace(/^\/champ/, ''),
+        rewrite: (p) => p.replace(/^\/acceleron_champ/, ''),
       },
       '/api': 'http://localhost:8080',
       '/webhook': 'http://localhost:8080',
