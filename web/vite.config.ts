@@ -11,15 +11,15 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/acceleron_champ/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
         rewrite: (p) => p.replace(/^\/acceleron_champ/, ''),
       },
       '/acceleron_champ/webhook': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
         rewrite: (p) => p.replace(/^\/acceleron_champ/, ''),
       },
-      '/api': 'http://localhost:8080',
-      '/webhook': 'http://localhost:8080',
+      '/api': 'http://localhost:8081',
+      '/webhook': 'http://localhost:8081',
     },
   },
 })
