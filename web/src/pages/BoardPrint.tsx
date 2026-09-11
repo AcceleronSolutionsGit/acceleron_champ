@@ -19,7 +19,7 @@ export default function BoardPrint(): React.ReactElement {
   return (
     <div className="printable">
       <div className="print-actions no-print">
-        <Link to={`/board${site ? `?site=${encodeURIComponent(site)}` : ''}`}>← Back to the board</Link>
+        <Link to={`/${site ? `?site=${encodeURIComponent(site)}` : ''}`}>← Back to the board</Link>
         <Button variant="primary" onClick={() => window.print()}>
           🖨 Print
         </Button>
@@ -106,7 +106,7 @@ export default function BoardPrint(): React.ReactElement {
           )}
 
           <p style={{ marginTop: 24, color: 'var(--muted)', fontSize: 13 }}>
-            Give recognition on WhatsApp — message CHAMP. Printed from the Acceleron CHAMP Spot Recognition Tool.
+            Give recognition on WhatsApp — message Acceleron Champ. Printed from the Acceleron Champ Spot Recognition Tool.
           </p>
         </>
       ) : null}

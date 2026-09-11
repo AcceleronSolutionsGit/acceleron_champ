@@ -1,5 +1,5 @@
 /**
- * Route table (SPEC §6). Public: /login, /board, /board/print, /simulator.
+ * Route table (SPEC §6). Public: /login, / (board), /board/print, /simulator.
  * Everything else sits behind RequireAuth inside the Layout shell;
  * /analytics and /admin additionally require the committee role (the server
  * enforces the same gates — these are UX affordances, not the security).
@@ -28,7 +28,8 @@ export default function App(): React.ReactElement {
         <Suspense fallback={<div className="page-splash">Loading…</div>}>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/board" element={<Board />} />
+            <Route index element={<Board />} />
+            <Route path="/board" element={<Navigate to="/" replace />} />
             <Route path="/board/print" element={<BoardPrint />} />
             <Route path="/simulator" element={<Simulator />} />
             <Route
@@ -38,7 +39,7 @@ export default function App(): React.ReactElement {
                 </RequireAuth>
               }
             >
-              <Route index element={<Feed />} />
+              <Route path="feed" element={<Feed />} />
               <Route path="people" element={<People />} />
               <Route path="people/:id" element={<PersonProfile />} />
               <Route

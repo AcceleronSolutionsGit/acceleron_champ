@@ -94,9 +94,9 @@ export async function sendMail(to: string, subject: string, text: string): Promi
 
 /** The one transactional mail this system sends: the login OTP. */
 export async function sendOtpEmail(email: string, code: string): Promise<void> {
-  const subject = `${code} is your Gainwell CHAMP sign-in code`
+  const subject = `${code} is your Acceleron Champ sign-in code`
   const text = [
-    `Your Gainwell CHAMP sign-in code is: ${code}`,
+    `Your Acceleron Champ sign-in code is: ${code}`,
     '',
     `It expires in ${config.auth.otpTtlMinutes} minutes and can be used once.`,
     "If you didn't request this code, you can safely ignore this email.",

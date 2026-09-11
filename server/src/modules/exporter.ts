@@ -124,7 +124,7 @@ function buildCsv(rows: ExportRow[]): Buffer {
 
 async function buildXlsx(rows: ExportRow[]): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook()
-  workbook.creator = 'Gainwell CHAMP Spot Recognition Tool'
+  workbook.creator = 'Acceleron Champ Spot Recognition Tool'
   workbook.created = new Date()
   const sheet = workbook.addWorksheet('Recognitions', {
     views: [{ state: 'frozen', ySplit: 1 }], // keep the header visible

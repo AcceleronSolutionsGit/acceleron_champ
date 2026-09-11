@@ -1,5 +1,5 @@
 /**
- * Gainwell CHAMP · Spot Recognition Tool — application entry point.
+ * Acceleron Champ · Spot Recognition Tool — application entry point.
  *
  * One service (architecture §1): WhatsApp webhook + conversation engine,
  * rules engine, feed/profile API, admin & moderation console API, analytics,

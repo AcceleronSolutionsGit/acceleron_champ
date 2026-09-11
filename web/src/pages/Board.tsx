@@ -68,7 +68,7 @@ export default function Board(): React.ReactElement {
           <div className="board-empty">Can't reach the CHAMP feed right now — retrying…</div>
         ) : items.length === 0 && !feed.loading ? (
           <div className="board-empty">
-            No recognitions yet — be the first! Message CHAMP on WhatsApp.
+            No recognitions yet — be the first! Message Acceleron Champ on WhatsApp.
           </div>
         ) : (
           items.map((item, i) => <BoardCard key={item.id} item={item} highlight={i === highlight} />)
@@ -77,7 +77,7 @@ export default function Board(): React.ReactElement {
 
       <footer className="board-footer">
         <div className="board-cta">
-          Give recognition on WhatsApp — message <span className="wa">CHAMP</span>
+          Give recognition on WhatsApp — message <span className="wa">Acceleron Champ</span>
         </div>
         <div>Spot great work. Say it in one line. It lands here.</div>
       </footer>

@@ -99,6 +99,6 @@ export function RequireRole({
   const location = useLocation()
   if (initializing) return <div className="page-splash">Loading…</div>
   if (!user) return <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />
-  if (!hasRole(user, role)) return <Navigate to="/" replace />
+  if (!hasRole(user, role)) return <Navigate to="/feed" replace />
   return children
 }

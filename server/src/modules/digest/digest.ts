@@ -71,7 +71,7 @@ export async function buildWeeklyDigest(): Promise<{ text: string; stats: Digest
 
 function composeText(stats: DigestStats): string {
   const weekEnd = formatIst(nowIso(), 'DD MMM')
-  const lines: string[] = [`🏆 Gainwell CHAMP — weekly roundup (week ending ${weekEnd})`, '']
+  const lines: string[] = [`🏆 Acceleron Champ — weekly roundup (week ending ${weekEnd})`, '']
   if (stats.total === 0) {
     lines.push(
       'A quiet week — no recognitions in the last 7 days.',

@@ -41,7 +41,7 @@ export default function Layout(): React.ReactElement {
     <>
       <header className="topnav">
         <div className="topnav-inner">
-          <div className="brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
+          <div className="brand" onClick={() => navigate('/feed')} style={{ cursor: 'pointer' }}>
             <img src={`${import.meta.env.BASE_URL}Acceleron_Short_Logo.png`} alt="Acceleron" style={{ height: '38px', width: 'auto', objectFit: 'contain' }} onError={(e) => { (e.currentTarget as HTMLImageElement).src = `${import.meta.env.BASE_URL}logo.png` }} />
             <div className="brand-text">
               <span className="brand-title">CHAMP</span>
@@ -50,7 +50,7 @@ export default function Layout(): React.ReactElement {
           </div>
 
           <nav className="nav-links" aria-label="Primary">
-            <NavLink to="/" end className={({ isActive }) => (isActive ? 'active' : '')}>
+            <NavLink to="/feed" end className={({ isActive }) => (isActive ? 'active' : '')}>
               📡 Live Feed
             </NavLink>
             <NavLink to="/people" className={({ isActive }) => (isActive ? 'active' : '')}>
@@ -66,7 +66,7 @@ export default function Layout(): React.ReactElement {
                 ⚙️ Console
               </NavLink>
             )}
-            <a href="/board" target="_blank" rel="noreferrer" className="kiosk-link">
+            <a href="/" target="_blank" rel="noreferrer" className="kiosk-link">
               📺 Kiosk Board ↗
             </a>
             {import.meta.env.DEV && (

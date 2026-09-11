@@ -21,7 +21,7 @@ import { Lang, normalizeLang, t } from './i18n'
 
 // ── persisted state ───────────────────────────────────────────────────────────
 
-type Step = 'menu' | 'recipient_query' | 'behaviour' | 'reason'
+type Step = 'menu' | 'dpdp_consent' | 'recipient_query' | 'behaviour' | 'reason'
 
 interface ConvState {
   step: Step
@@ -70,6 +70,23 @@ export async function processInboundMessage(msg: InboundMessage): Promise<BotRep
   const rawText = msg.text?.trim()
   const command = rawText ? normalizeCommand(rawText) : ''
 
+  // ── DPDP consent gate — first-time users must consent before anything ──────
+  if (!giver.consent_recorded) {
+    // Allow the dpdp_agree / dpdp_decline taps through
+    if (msg.interactiveReplyId === 'dpdp_agree') {
+      await db('employees').where({ id: giver.id }).update({ consent_recorded: 1, updated_at: nowIso() })
+      // Consent granted — show the welcome menu
+      return showMenu(mobile, lang)
+    }
+    if (msg.interactiveReplyId === 'dpdp_decline') {
+      await clearState(mobile)
+      return [text(t(lang, 'dpdp_declined'))]
+    }
+    // Any other message while unconsented → show the consent prompt
+    await saveState(mobile, { step: 'dpdp_consent', lang, data: {} })
+    return [showDpdpConsent(lang)]
+  }
+
   // ── global text commands (work from any step) ──────────────────────────────
   if (command && CANCEL_RE.test(command)) {
     await clearState(mobile)
@@ -99,6 +116,9 @@ export async function processInboundMessage(msg: InboundMessage): Promise<BotRep
   switch (state.step) {
     case 'menu':
       return showMenu(mobile, lang)
+    case 'dpdp_consent':
+      // Free text while in consent step → re-show consent buttons
+      return [showDpdpConsent(lang)]
     case 'recipient_query':
       return searchRecipients(mobile, giver, lang, rawText)
     case 'behaviour':
@@ -150,8 +170,11 @@ async function setLanguage(
     return [text(t(lang, 'help_fallback'))]
   }
   await getDb()('employees').where({ id: giver.id }).update({ language: code, updated_at: nowIso() })
-  await clearState(mobile) // copy says "say hi to continue" — start clean
-  return [text(t(code, 'lang_set'))] // confirm in the NEW language
+  // Confirm in the new language, then show the menu directly so the user
+  // can continue without needing to say "hi" again.
+  const confirmReply = text(t(code, 'lang_set'))
+  const menuReplies = await showMenu(mobile, code as Lang)
+  return [confirmReply, ...menuReplies]
 }
 
 async function handleRecipientPick(
@@ -447,6 +470,18 @@ async function showMenu(mobile: string, lang: Lang): Promise<BotReply[]> {
       ],
     },
   ]
+}
+
+/** DPDP consent prompt — shown to first-time users (consent_recorded=0). */
+function showDpdpConsent(lang: Lang): BotReply {
+  return {
+    type: 'buttons',
+    text: t(lang, 'dpdp_consent'),
+    buttons: [
+      { id: 'dpdp_agree', title: t(lang, 'dpdp_agree') },
+      { id: 'dpdp_decline', title: t(lang, 'dpdp_decline') },
+    ],
+  }
 }
 
 function languageButtons(lang: Lang): BotReply {
