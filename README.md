@@ -7,8 +7,7 @@ the phone already in their pocket. Recognitions land on a live feed, plant
 kiosk boards and an analytics dashboard; a light-touch moderation console
 keeps the programme healthy without policing it.
 
-The six CHAMP behaviours: **Safety First · Quality · Ownership · Innovation ·
-Collaboration · Customer Centricity**.
+The six CHAMP behaviours: **IMPACT · CARING · ENTREPRENEURSHIP · CUSTOMER CENTRICITY · INTEGRITY · INNOVATION**.
 
 Design principles baked into the code:
 

@@ -47,51 +47,51 @@ const LAST_NAMES = [
 ]
 
 export const BEHAVIOUR_SEED = [
-  { name: 'Safety First', description: 'Acted to keep people, machines and the site safe', colour: '#D64545', sort_order: 1 },
-  { name: 'Quality', description: 'Got it right the first time and raised the bar', colour: '#3B7DD8', sort_order: 2 },
-  { name: 'Ownership', description: 'Took charge beyond the role and saw it through', colour: '#7C5CBF', sort_order: 3 },
-  { name: 'Innovation', description: 'Found a smarter, faster or better way', colour: '#E8A33D', sort_order: 4 },
-  { name: 'Collaboration', description: 'Helped another person or team win', colour: '#2FA88C', sort_order: 5 },
-  { name: 'Customer Centricity', description: 'Put the customer at the centre of a decision', colour: '#C95D8A', sort_order: 6 },
+  { name: 'IMPACT', description: 'Outcomes that outlast the project.', colour: '#19559c', sort_order: 1 },
+  { name: 'CARING', description: 'People first in every decision.', colour: '#619c77', sort_order: 2 },
+  { name: 'ENTREPRENEURSHIP', description: 'Own it. Drive it. Deliver it.', colour: '#ba232b', sort_order: 3 },
+  { name: 'CUSTOMER CENTRICITY', description: 'Your outcomes. Our responsibility.', colour: '#e58f00', sort_order: 4 },
+  { name: 'INTEGRITY', description: 'Do right. Always.', colour: '#5a623e', sort_order: 5 },
+  { name: 'INNOVATION', description: 'Think ahead. Build what\'s next.', colour: '#752d81', sort_order: 6 },
 ]
 
 const REASONS: Record<string, string[]> = {
-  'Safety First': [
+  'IMPACT': [
     'Stopped the line when a sling on Bay 3 looked frayed and had it swapped before the next lift',
     'Caught a missing lockout tag at shift handover and fixed the isolation before work resumed',
     'Walked a new fitter through the correct PPE for the grinding bay instead of letting it slide',
     'Flagged an oil patch near the CNC aisle and stayed until it was cleaned and cordoned off',
     'Refused to rush the hydraulic test under time pressure and insisted on the full checklist',
   ],
-  Quality: [
+  'INTEGRITY': [
     'Re-measured the full weldment batch after one part came off-spec and saved a customer escape',
     'Caught a wrong torque spec in the router before assembly started on Line 2',
     'Reworked the fixture alignment until first-pass yield came back above target',
     'Documented the paint defect pattern so the night shift could avoid the same rework',
     'Held the dispatch until the inspection report matched the latest drawing revision',
   ],
-  Ownership: [
+  'ENTREPRENEURSHIP': [
     'Stayed back after shift to close the ERP work orders so month-end did not slip',
     'Took over the vendor escalation nobody owned and drove it to a fix in two days',
     'Volunteered to cover the stores counter during the audit week without being asked',
     'Tracked the missing fasteners consignment personally and kept Line 1 running',
     'Owned the 5S corner for the bay and had it audit-ready a week early',
   ],
-  Innovation: [
+  'INNOVATION': [
     'Built a simple jig from scrap that cut the panel drilling time nearly in half',
     'Set up a shared tracker that replaced the whiteboard and stopped double bookings of the crane',
     'Suggested reversing the assembly sequence which removed two forklift moves per unit',
     'Wrote a small macro that auto-fills the daily production report from the shift log',
     'Prototyped a guard modification that ended the recurring sensor false trips',
   ],
-  Collaboration: [
+  'CARING': [
     'Jumped in to help Fabrication clear the backlog even though the request came at 6 pm',
     'Shared the test rig slots so both teams could hit the same deadline',
     'Coached two new joiners on the CMM so Quality was not a bottleneck during trials',
     'Coordinated with Stores and Maintenance to turn the breakdown around inside one shift',
     'Translated the work instructions for the new contractual crew so nobody was left behind',
   ],
-  'Customer Centricity': [
+  'CUSTOMER CENTRICITY': [
     'Turned around the customer drawing clarification the same evening to protect the delivery date',
     'Called out that the packaging spec would fail monsoon transit and got it changed in time',
     'Prepared the extra inspection photos the customer asked for without being chased',
@@ -345,8 +345,8 @@ async function generate(db: Knex): Promise<Record<string, number>> {
 
   const behaviourWeights = (giver: SeededEmployee): [string, number][] =>
     giver.fn === 'Manufacturing'
-      ? [['Safety First', 0.30], ['Quality', 0.20], ['Ownership', 0.15], ['Innovation', 0.07], ['Collaboration', 0.16], ['Customer Centricity', 0.12]]
-      : [['Safety First', 0.08], ['Quality', 0.22], ['Ownership', 0.20], ['Innovation', 0.15], ['Collaboration', 0.22], ['Customer Centricity', 0.13]]
+      ? [['IMPACT', 0.30], ['INTEGRITY', 0.20], ['ENTREPRENEURSHIP', 0.15], ['INNOVATION', 0.07], ['CARING', 0.16], ['CUSTOMER CENTRICITY', 0.12]]
+      : [['IMPACT', 0.08], ['INTEGRITY', 0.22], ['ENTREPRENEURSHIP', 0.20], ['INNOVATION', 0.15], ['CARING', 0.22], ['CUSTOMER CENTRICITY', 0.13]]
 
   const pickBehaviour = (giver: SeededEmployee): string => {
     const weights = behaviourWeights(giver)

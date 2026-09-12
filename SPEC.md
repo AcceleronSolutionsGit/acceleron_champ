@@ -28,7 +28,7 @@ Internal contract document. Source requirements: `GEPL CHAMP Spot Tool Requireme
 - `server/src/types.ts` — all shared domain types (`Employee`, `Recognition`, `BotReply`, `CreateRecognitionResult`, `FeedItem`, …). Use these; don't redefine.
 - `server/src/db/knex.ts` — `initDb()/getDb()/closeDb()`.
 - `server/src/db/migrations/001_init.ts` — the full schema (read it).
-- `server/src/db/seed/demo.ts` — demo directory + history. Behaviour names: Safety First, Quality, Ownership, Innovation, Collaboration, Customer Centricity.
+- `server/src/db/seed/demo.ts` — demo directory + history. Behaviour names: IMPACT, CARING, ENTREPRENEURSHIP, CUSTOMER CENTRICITY, INTEGRITY, INNOVATION.
 - `server/src/modules/settings.ts` — `getSettings()/updateSettings()` + `AppSettings` (cap, reason gate, flag thresholds, digest).
 - `server/src/index.ts` — mounts routers exactly as named in §10; webhook mounted before `express.json()` (raw body available to it).
 

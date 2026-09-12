@@ -12,12 +12,12 @@ interface GiveRecognitionModalProps {
 }
 
 const DEFAULT_BEHAVIOURS: BehaviourRef[] = [
-  { id: 1, name: 'Safety First', colour: '#059669' },
-  { id: 2, name: 'Quality', colour: '#2563eb' },
-  { id: 3, name: 'Ownership', colour: '#7c3aed' },
-  { id: 4, name: 'Innovation', colour: '#d97706' },
-  { id: 5, name: 'Collaboration', colour: '#0891b2' },
-  { id: 6, name: 'Customer Centricity', colour: '#e11d48' },
+  { id: 1, name: 'IMPACT', colour: '#19559c' },
+  { id: 2, name: 'CARING', colour: '#619c77' },
+  { id: 3, name: 'ENTREPRENEURSHIP', colour: '#ba232b' },
+  { id: 4, name: 'CUSTOMER CENTRICITY', colour: '#e58f00' },
+  { id: 5, name: 'INTEGRITY', colour: '#5a623e' },
+  { id: 6, name: 'INNOVATION', colour: '#752d81' },
 ]
 
 export default function GiveRecognitionModal({
