@@ -89,10 +89,25 @@ git push origin master
 ## 4. Import the project into Vercel
 
 1. vercel.com → **Add New… → Project** → import `acceleron_champ`.
-2. Framework Preset: **Other**. Leave Root Directory as `./`.
-3. Don't touch Build Command / Output Directory — `vercel.json` sets them
+2. Framework Preset: **Other**.
+3. **Root Directory must be `./` — the repo root.** This is the setting Vercel's
+   monorepo detection tends to get wrong here: it sees the `server` and `web`
+   workspaces and offers to build one of them. It must not. `vercel.json`, `api/` and
+   `web/` all live at the repo root and none of them are visible from inside a
+   workspace folder. Getting this wrong fails the build with:
+
+   ```
+   npm error Lifecycle script `vercel-build` failed with error:
+   npm error workspace @champ/server@0.1.0
+   npm error location /vercel/path0/server
+   npm error Missing script: "vercel-build"
+   ```
+
+   The `location` line is the tell — it names the folder Vercel actually built from.
+   Fix it in Settings → Build & Deployment → Root Directory, then redeploy.
+4. Don't touch Build Command / Output Directory — `vercel.json` sets them
    (`npm run vercel-build`, output `web/dist`).
-4. **Add the environment variables in §5 before clicking Deploy** — the build runs
+5. **Add the environment variables in §5 before clicking Deploy** — the build runs
    the migrations, so it fails without `DATABASE_URL`.
 
 ---
@@ -213,6 +228,12 @@ Worth knowing before they surprise you.
   directory sync of a large org can exceed that and get killed mid-run. On Pro you can
   raise it to 300; otherwise run the sync from a machine that isn't time-limited
   (`npm run sync:darwinbox -w server`).
+- **npm 12 blocks dependency install scripts.** The root `package.json` carries an
+  `allowScripts` block for `esbuild` and `better-sqlite3`. Remove it and the build
+  still "succeeds" at install time, then `vite build` dies with *"You installed
+  esbuild for another platform"* — the postinstall that fetches the platform binary
+  never ran. Adding a dependency with an install script means adding it there too;
+  `npm install` warns when one is uncovered.
 - **Rate limiting is per-instance.** `express-rate-limit` keeps counters in memory, so
   the OTP and API limits now apply per warm lambda rather than globally. For a real
   ceiling, move to `rate-limit-redis` with Upstash.

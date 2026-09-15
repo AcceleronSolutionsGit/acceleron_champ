@@ -16,6 +16,11 @@
     "typecheck": "npm run typecheck -w server && npm run typecheck -w web",
     "seed:reset": "npm run seed:reset -w server"
   },
+  "comment:allowScripts": "npm 12 blocks dependency install scripts unless they are listed here. esbuild's postinstall fetches its platform binary — without it `vite build` fails with 'You installed esbuild for another platform'. better-sqlite3's install script fetches its prebuilt native binding (local SQLite dev only; production uses mysql2). Name-only keys approve any version, so a dependency bump needs no re-approval. Older npm ignores this field.",
+  "allowScripts": {
+    "esbuild": true,
+    "better-sqlite3": true
+  },
   "devDependencies": {
     "concurrently": "^9.0.0"
   },
