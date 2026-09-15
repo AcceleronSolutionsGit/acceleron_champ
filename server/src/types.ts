@@ -109,6 +109,8 @@ export interface InboundMessage {
   mobile: string // E.164 of the sender
   text?: string // free-text body, when the user typed
   interactiveReplyId?: string // row/button id, when the user tapped
+  /** Meta's per-message id (wamid.*), used to ignore repeat deliveries. */
+  providerMessageId?: string
 }
 
 // ── API shapes ────────────────────────────────────────────────────────────────

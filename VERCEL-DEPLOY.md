@@ -280,6 +280,15 @@ Worth knowing before they surprise you.
 - **Rate limiting is per-instance.** `express-rate-limit` keeps counters in memory, so
   the OTP and API limits now apply per warm lambda rather than globally. For a real
   ceiling, move to `rate-limit-redis` with Upstash.
+- **Inbound WhatsApp deliveries are idempotent, and must stay that way.**
+  Meta retries a webhook until it gets a 200. Without a record of what has been
+  handled, every retry re-runs the engine and re-sends the replies — so a spell
+  of failing webhooks produces a burst of duplicate bot messages once the
+  endpoint recovers, mostly the "Say hi for the menu" fallback, because the
+  conversation has moved on since. `processed_messages` (migration 004) records
+  Meta's per-message id; the unique constraint on it is what makes claiming a
+  message atomic under concurrent retries. The table grows one row per inbound
+  message — prune it if it ever gets large.
 - **The Meta webhook is deliberately NOT served by the Express app.**
   `/webhook/whatsapp` is rewritten to `api/whatsapp.mjs`, a Web-signature
   function, because that is the only shape on Vercel that yields the request

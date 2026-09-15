@@ -14,6 +14,8 @@ import { config } from '../config'
 import { InboundMessage } from '../types'
 import { processInboundMessage } from '../modules/conversation/engine'
 import { getWhatsAppProvider } from '../modules/whatsapp/provider'
+import { getDb } from '../db/knex'
+import { nowIso } from '../db/time'
 import { isServerless } from '../runtime'
 
 const router = Router()
@@ -38,6 +40,7 @@ router.get('/', (req: Request, res: Response) => {
  *  else (statuses, contacts, metadata) passes through unvalidated. */
 const metaMessageSchema = z
   .object({
+    id: z.string().optional(),
     from: z.string(),
     type: z.string(),
     text: z.object({ body: z.string() }).optional(),
@@ -206,19 +209,47 @@ function toInboundMessages(payload: MetaPayload): InboundMessage[] {
       for (const m of change.value.messages ?? []) {
         // Meta sends wa_id digits without '+'; the directory stores E.164.
         const mobile = m.from.startsWith('+') ? m.from : `+${m.from}`
+        const providerMessageId = m.id
         if (m.type === 'text' && m.text) {
-          out.push({ mobile, text: m.text.body })
+          out.push({ mobile, text: m.text.body, providerMessageId })
         } else if (m.type === 'interactive' && m.interactive) {
           const id = m.interactive.list_reply?.id ?? m.interactive.button_reply?.id
-          if (id) out.push({ mobile, interactiveReplyId: id })
+          if (id) out.push({ mobile, interactiveReplyId: id, providerMessageId })
         } else {
           // Unsupported type (image, audio, …) — engine answers with help text.
-          out.push({ mobile })
+          out.push({ mobile, providerMessageId })
         }
       }
     }
   }
   return out
+}
+
+/**
+ * Claim a delivery, returning false if it has already been handled.
+ *
+ * Meta retries until it receives a 200, and re-delivers in other situations
+ * too. Without this, every retry re-runs the engine and re-sends the replies —
+ * so a spell of failing webhooks produces a burst of duplicate bot messages the
+ * moment the endpoint recovers, most of them the "Say hi for the menu" fallback
+ * because the conversation has long since moved on.
+ *
+ * The unique constraint on processed_messages.message_id is what makes this
+ * atomic: two concurrent retries race on the INSERT and exactly one wins. A
+ * message with no id (which Meta should always send) is allowed through rather
+ * than dropped.
+ */
+async function claimMessage(msg: InboundMessage): Promise<boolean> {
+  if (!msg.providerMessageId) return true
+  try {
+    await getDb()('processed_messages').insert({
+      message_id: msg.providerMessageId,
+      created_at: nowIso(),
+    })
+    return true
+  } catch {
+    return false
+  }
 }
 
 /** Run the engine per message (sequentially — keeps per-user ordering) and
@@ -227,6 +258,10 @@ function toInboundMessages(payload: MetaPayload): InboundMessage[] {
 export async function deliverAndReply(messages: InboundMessage[]): Promise<void> {
   for (const msg of messages) {
     try {
+      if (!(await claimMessage(msg))) {
+        console.log(`[webhook] duplicate delivery ignored (${msg.providerMessageId})`)
+        continue
+      }
       const replies = await processInboundMessage(msg)
       if (replies.length > 0) {
         await getWhatsAppProvider().sendReplies(msg.mobile, replies)
