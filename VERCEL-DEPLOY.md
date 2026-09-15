@@ -134,7 +134,6 @@ working preview deploys — point those at a separate database).
 | `SESSION_SECRET` | 32+ random bytes — `openssl rand -hex 32`. The app refuses to boot in production with the dev default. |
 | `DATABASE_CLIENT` | `pg` |
 | `DATABASE_URL` | the string from §2 |
-| `VITE_BASE_PATH` | `/` — the console lives at the domain root on Vercel, not under `/acceleron_champ/`. **Build-time variable**: Vite bakes it into `index.html`, so it must exist *before* the build. Adding it to an already-deployed project does nothing until you redeploy. |
 | `CRON_SECRET` | `openssl rand -hex 32`. Vercel sends it as `Authorization: Bearer …` on cron calls; `/api/cron/*` rejects everything else. |
 | `ALLOWED_EMAIL_DOMAIN` | e.g. `acceleronsolutions.io` |
 | `ADMIN_EMAILS` | comma-separated |
@@ -163,17 +162,20 @@ is no good in production.
 
 | Name | Value |
 |---|---|
+| `VITE_BASE_PATH` | Not needed on Vercel — `vite.config.ts` defaults to `/` when `VERCEL` is set. Only set it to deploy under some other prefix, and note it is a **build-time** variable: changing it does nothing until you redeploy. |
 | `DISPLAY_TIMEZONE` | `Asia/Kolkata` (default) |
 | `ENABLE_SIMULATOR` | leave unset — off in production |
 | `BOARD_TOKEN` | token for the public plant board |
 | `SEED_DEMO_DATA` | `true` **only** if you want the demo directory loaded into an empty database. Leave unset for real data. |
 | `DARWINBOX_ENABLED` + `DARWINBOX_*` | if the nightly HRMS sync is in use |
 
-Don't set `PORT`; there's no listener. You don't need `NODE_ENV` either — Vercel
-doesn't reliably set it inside the function, so `api/index.js` derives it from
-`VERCEL_ENV` before any config is read. Check `/api/health` reports
-`"env":"production"`; if it says `development`, the app is running with production
-safety checks off (see §9).
+Don't set `PORT`; there's no listener. `NODE_ENV` is unnecessary too — `api/index.js`
+derives it from `VERCEL_ENV`, and `config.ts` also treats `VERCEL_ENV=production` as
+production regardless. Setting it by hand is harmless (the value is lower-cased, so
+`PRODUCTION` works), but it is one more thing to get wrong.
+
+Check `/api/health` reports `"env":"production"` — if it says `development`, the app is
+running with its production safety checks off (see §9).
 
 ---
 
@@ -251,6 +253,12 @@ Worth knowing before they surprise you.
   directory sync of a large org can exceed that and get killed mid-run. On Pro you can
   raise it to 300; otherwise run the sync from a machine that isn't time-limited
   (`npm run sync:darwinbox -w server`).
+- **Two settings used to be manual and are now derived.** The console's base path
+  comes from `VERCEL` in `vite.config.ts`, and production-ness from `VERCEL_ENV` in
+  `config.ts` / `api/index.js`. Both were environment variables you had to set
+  exactly right, and both failed silently when you didn't: a blank page with one
+  console error, and production safety checks quietly off. If you ever move off
+  Vercel, those two derivations are the first thing to revisit.
 - **`NODE_ENV` is not guaranteed in the function.** `config.ts` falls back to
   `development` when it is absent, and that fallback turns off three production
   behaviours at once: the missing-`SESSION_SECRET` check, the `secure` flag on the

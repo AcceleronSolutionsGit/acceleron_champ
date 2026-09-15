@@ -37,8 +37,12 @@ function list(v: string | undefined, dflt: string[]): string[] {
 
 function buildConfig() {
   const env = process.env
-  const nodeEnv = env.NODE_ENV ?? 'development'
-  const isProd = nodeEnv === 'production'
+  // Normalised, because a hosting dashboard will happily hand you "PRODUCTION"
+  // or " production". An unrecognised value silently means "not production",
+  // which switches off the SESSION_SECRET check and the secure-cookie flag —
+  // too quiet a failure to leave to an exact string match.
+  const nodeEnv = (env.NODE_ENV ?? 'development').trim().toLowerCase()
+  const isProd = nodeEnv === 'production' || env.VERCEL_ENV === 'production'
   return {
     nodeEnv,
     isProd,
