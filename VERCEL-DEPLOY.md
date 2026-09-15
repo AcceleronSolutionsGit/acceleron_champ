@@ -8,11 +8,11 @@ Express app runs as a single serverless function, and the jobs run as Vercel Cro
 
 ## 0. Two things to confirm before you start
 
-**Your MySQL server must accept connections from the public internet.**
+**Your database must accept connections from the public internet.**
 Vercel functions and build machines have rotating egress IPs, so an IP allowlist or a
-VPN-only database will not work. If the MySQL box is on the office network, you need
-either a publicly reachable managed MySQL (PlanetScale, Aiven, AWS RDS with public
-access, Railway) or a tunnel. Static egress IPs need Vercel Pro + Secure Compute.
+VPN-only database will not work. Neon (§2) is a public managed service, so this is a
+non-issue there — it only bites if you point `DATABASE_URL` at a database on the office
+network. Static egress IPs need Vercel Pro + Secure Compute.
 
 **Check your Vercel plan against the cron limits.**
 This app has three jobs. Hobby allows 2 cron jobs; Pro allows 40. On Hobby, drop one
@@ -28,7 +28,7 @@ frozen the moment a response is sent. Four things in the app assumed otherwise.
 
 | Assumption | Now |
 |---|---|
-| SQLite file on disk | MySQL via `DATABASE_CLIENT=mysql2` + `DATABASE_URL` |
+| SQLite file on disk | Managed Postgres via `DATABASE_CLIENT=pg` + `DATABASE_URL` |
 | `node-cron` timers in-process | Vercel Cron → `GET /api/cron/<job>` (`server/src/routes/cron.ts`) |
 | Migrations + seeding on every boot | Once per deploy, in the build (`server/src/db/migrate.ts`) |
 | Webhook acks first, replies after | On Vercel it finishes the reply, *then* acks |
@@ -47,30 +47,40 @@ serverless branch is behind `process.env.VERCEL`, which only Vercel sets.
 
 ---
 
-## 2. Prepare the MySQL database
+## 2. Prepare the database (Neon Postgres)
 
-Create an empty database and a user:
+The app runs on Postgres, MySQL or SQLite — knex picks the dialect from
+`DATABASE_CLIENT`. Postgres is the right choice on Vercel: Neon's pooled endpoint is
+built for many short-lived serverless connections, where a fixed-connection MySQL box
+is not, and Neon has a free tier that does not expire.
 
-```sql
-CREATE DATABASE champ CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'champ'@'%' IDENTIFIED BY '<strong-password>';
-GRANT ALL PRIVILEGES ON champ.* TO 'champ'@'%';
-FLUSH PRIVILEGES;
-```
+1. Sign up at neon.tech and create a project. **Pick the region closest to your users**
+   — see the residency note below.
+2. Copy the **pooled** connection string from the dashboard. The hostname contains
+   `-pooler`; that is the one you want on serverless:
 
-Your connection string:
+   ```
+   postgresql://champ:<password>@ep-xxxx-pooler.<region>.aws.neon.tech/champ?sslmode=require
+   ```
 
-```
-mysql://champ:<password>@<host>:3306/champ
-```
+3. Don't create any tables — the build step runs the migrations.
 
-If the host requires TLS (most managed providers do), append:
+**Keep `?sslmode=require`.** The `pg` driver maps it to a verified TLS connection
+against Neon's publicly trusted certificate. Only use `sslmode=no-verify` if you move
+to a provider with a self-signed certificate — it turns certificate checking off.
 
-```
-?ssl={"rejectUnauthorized":true}
-```
+**Data residency.** This database holds employee names, phone numbers and recognition
+history. The original design called for ap-south-1 (Mumbai) for DPDP. Check Neon's
+region list before you create the project; if Mumbai isn't offered on your plan and
+residency is a hard requirement, Supabase has a Mumbai region — but its free projects
+pause after about a week of inactivity, which is a poor fit for a tool people sign into
+occasionally.
 
-Don't create any tables — the build step runs the migrations.
+### Staying on MySQL instead
+
+Nothing in the code stops you. Set `DATABASE_CLIENT=mysql2` and a
+`mysql://user:pass@host:3306/champ` URL (add `?ssl={"rejectUnauthorized":true}` if the
+host requires TLS). Everything in this guide otherwise applies unchanged.
 
 ---
 
@@ -122,7 +132,7 @@ working preview deploys — point those at a separate database).
 | Name | Value |
 |---|---|
 | `SESSION_SECRET` | 32+ random bytes — `openssl rand -hex 32`. The app refuses to boot in production with the dev default. |
-| `DATABASE_CLIENT` | `mysql2` |
+| `DATABASE_CLIENT` | `pg` |
 | `DATABASE_URL` | the string from §2 |
 | `VITE_BASE_PATH` | `/` — the console lives at the domain root on Vercel, not under `/acceleron_champ/` |
 | `CRON_SECRET` | `openssl rand -hex 32`. Vercel sends it as `Authorization: Bearer …` on cron calls; `/api/cron/*` rejects everything else. |
@@ -169,9 +179,9 @@ Don't set `PORT`; there's no listener.
 Click Deploy, then check in order:
 
 ```bash
-# 1. the API is alive and talking to MySQL
+# 1. the API is alive and talking to the database
 curl https://<your-app>.vercel.app/api/health
-# → {"ok":true,"env":"production","whatsapp":"meta","email":"smtp","db":"mysql2","serverless":true}
+# → {"ok":true,"env":"production","whatsapp":"meta","email":"smtp","db":"pg","serverless":true}
 
 # 2. cron auth is closed
 curl -i https://<your-app>.vercel.app/api/cron/flag-scan          # → 401
@@ -183,7 +193,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
 
 Then open the app, request an OTP, and confirm the email arrives. Check
 Vercel → Deployments → Build Logs for the `[migrate] migrations up to date` line, and
-confirm the tables exist in phpMyAdmin.
+confirm the tables exist in Neon's SQL editor.
 
 ---
 
@@ -240,8 +250,9 @@ Worth knowing before they surprise you.
 - **The WhatsApp webhook is slower to ack.** It now completes the conversation-engine
   reply before returning 200, because a serverless instance stops executing the moment
   it responds. If Meta starts reporting delivery failures, that's the thing to look at.
-- **Cold starts.** The first request after idle pays the Express boot plus a new MySQL
-  connection — roughly 1–3 seconds.
+- **Cold starts.** The first request after idle pays the Express boot plus a new
+  database connection — roughly 1–3 seconds. Neon scales its compute to zero when idle,
+  so the first query after a quiet spell wakes it and adds a little more.
 - **Connection pool is capped at 2 per instance** (`server/src/db/knex.ts`), because
   each concurrent lambda opens its own. Watch `max_connections` under load.
 - **Migrations run at build time.** A deploy whose build fails leaves the database
