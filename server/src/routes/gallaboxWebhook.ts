@@ -10,6 +10,7 @@ import { config } from '../config'
 import { InboundMessage } from '../types'
 import { processInboundMessage } from '../modules/conversation/engine'
 import { getWhatsAppProvider } from '../modules/whatsapp/provider'
+import { isServerless } from '../runtime'
 
 const router = Router()
 
@@ -22,7 +23,7 @@ router.get('/', (_req: Request, res: Response) => {
 })
 
 // POST handler for receiving incoming WhatsApp events from Gallabox
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   const secret = config.whatsapp.gallabox.webhookSecret
   const providedSecret =
     (req.headers['x-gallabox-secret'] as string) ||
@@ -35,15 +36,25 @@ router.post('/', (req: Request, res: Response) => {
     return
   }
 
+  const payload = req.body
+  const inboundMessages =
+    payload && typeof payload === 'object' ? parseGallaboxPayload(payload) : []
+
+  if (inboundMessages.length === 0) {
+    res.status(200).json({ status: 'received' })
+    return
+  }
+
+  if (isServerless) {
+    // The instance freezes as soon as the response is flushed — finish the work
+    // before acking rather than queueing it for a process that will not exist.
+    await deliverAndReply(inboundMessages)
+    res.status(200).json({ status: 'received' })
+    return
+  }
+
   // Fast ACK to Gallabox so it doesn't retry
   res.status(200).json({ status: 'received' })
-
-  const payload = req.body
-  if (!payload || typeof payload !== 'object') return
-
-  const inboundMessages = parseGallaboxPayload(payload)
-  if (inboundMessages.length === 0) return
-
   setImmediate(() => {
     void deliverAndReply(inboundMessages)
   })

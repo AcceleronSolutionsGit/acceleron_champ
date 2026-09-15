@@ -15,3 +15,4 @@ cloudflared.exe
 cookies.txt
 temp_*.json
 ecosystem.config.js
+.vercel

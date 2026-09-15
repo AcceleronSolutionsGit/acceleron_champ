@@ -14,6 +14,7 @@ import { config } from '../config'
 import { InboundMessage } from '../types'
 import { processInboundMessage } from '../modules/conversation/engine'
 import { getWhatsAppProvider } from '../modules/whatsapp/provider'
+import { isServerless } from '../runtime'
 
 const router = Router()
 
@@ -81,8 +82,24 @@ type MetaPayload = z.infer<typeof metaPayloadSchema>
 
 let warnedNoAppSecret = false
 
-router.post('/', (req: Request, res: Response) => {
-  const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0)
+/**
+ * Exact bytes of the request, for the HMAC.
+ *
+ * Normally express.raw() above leaves a Buffer in req.body. On Vercel the
+ * platform may have consumed and parsed the stream before Express saw it, in
+ * which case api/index.js leaves the bytes on req.rawBody. If it could only
+ * re-serialise a parsed object the bytes will not match Meta's signature —
+ * that case is logged rather than silently accepted.
+ */
+function exactBody(req: Request): Buffer {
+  if (Buffer.isBuffer(req.body)) return req.body
+  const raw = (req as Request & { rawBody?: Buffer }).rawBody
+  if (Buffer.isBuffer(raw)) return raw
+  return Buffer.alloc(0)
+}
+
+router.post('/', async (req: Request, res: Response) => {
+  const rawBody = exactBody(req)
 
   // Signature: reject 401 when the app secret is configured; in local dev
   // (no secret yet) warn once and continue so curl testing works.
@@ -106,11 +123,25 @@ router.post('/', (req: Request, res: Response) => {
     console.warn('[webhook] non-JSON payload ignored')
   }
 
-  // Always ack fast — Meta retries (and eventually disables) slow webhooks.
-  res.sendStatus(200)
-
   const messages = payload ? toInboundMessages(payload) : []
-  if (messages.length === 0) return
+
+  if (messages.length === 0) {
+    res.sendStatus(200)
+    return
+  }
+
+  if (isServerless) {
+    // A serverless instance is frozen the moment the response is flushed, so
+    // work queued for "after the ack" would never run. Finish first, then ack.
+    // Keep the function's maxDuration comfortably above the engine's worst case
+    // (vercel.json) — Meta retries anything that does not answer in time.
+    await deliverAndReply(messages)
+    res.sendStatus(200)
+    return
+  }
+
+  // Long-running host: ack fast — Meta retries (and eventually disables) slow webhooks.
+  res.sendStatus(200)
   setImmediate(() => {
     void deliverAndReply(messages)
   })

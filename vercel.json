@@ -1,0 +1,23 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run vercel-build",
+  "installCommand": "npm install",
+  "outputDirectory": "web/dist",
+  "framework": null,
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 60,
+      "includeFiles": "server/dist/**"
+    }
+  },
+  "crons": [
+    { "path": "/api/cron/darwinbox-sync", "schedule": "0 21 * * *" },
+    { "path": "/api/cron/flag-scan", "schedule": "45 21 * * *" },
+    { "path": "/api/cron/weekly-digest", "schedule": "30 3 * * 1" }
+  ],
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/webhook/(.*)", "destination": "/api" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

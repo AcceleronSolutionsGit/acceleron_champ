@@ -1,15 +1,30 @@
 /**
  * Database bootstrap. Local development uses zero-config SQLite
- * (better-sqlite3). Production uses managed PostgreSQL — on AWS that is RDS
- * in ap-south-1 (Mumbai) for DPDP data residency. Switch with
- * DATABASE_CLIENT=pg + DATABASE_URL (see .env.example).
+ * (better-sqlite3). Production uses a managed MySQL or PostgreSQL server —
+ * switch with DATABASE_CLIENT=mysql2 / pg plus DATABASE_URL (see .env.example).
+ *
+ * SERVERLESS (Vercel): every concurrent lambda opens its own pool, so the pool
+ * ceiling drops to 2 connections — ten lambdas would otherwise be enough to
+ * exhaust a default MySQL max_connections. Migrations do not run here either;
+ * they run once during the build (src/db/migrate.ts).
  */
 import knexFactory, { Knex } from 'knex'
 import path from 'path'
 import fs from 'fs'
 import { config } from '../config'
+import { isServerless, migrateAtBoot } from '../runtime'
 
 let db: Knex | null = null
+
+/**
+ * Static require hints for serverless bundlers. Knex resolves its drivers with
+ * a computed require() that dependency tracing cannot follow, so without these
+ * literals the driver is missing from the deployed function. Never called.
+ */
+export const __driverHints = {
+  mysql2: () => require('mysql2'),
+  pg: () => require('pg'),
+}
 
 function knexConfig(): Knex.Config {
   if (config.db.client === 'pg' || config.db.client === 'mysql2' || config.db.client === 'mysql') {
@@ -20,7 +35,8 @@ function knexConfig(): Knex.Config {
     return {
       client: config.db.client,
       connection: config.db.databaseUrl,
-      pool: { min: 0, max: 10 },
+      pool: { min: 0, max: isServerless ? 2 : 10 },
+      acquireConnectionTimeout: 15000,
     }
   }
   fs.mkdirSync(path.dirname(config.db.sqliteFile), { recursive: true })
@@ -78,15 +94,28 @@ async function normalizeRecordedMigrationNames(knex: Knex): Promise<void> {
   }
 }
 
-/** Open the connection and run pending migrations. Called once at boot. */
-export async function initDb(): Promise<Knex> {
-  if (db) return db
-  db = knexFactory(knexConfig())
-  await normalizeRecordedMigrationNames(db)
-  await db.migrate.latest({
+/** Run every pending migration. Safe to call repeatedly. */
+export async function runMigrations(knex: Knex): Promise<void> {
+  await normalizeRecordedMigrationNames(knex)
+  await knex.migrate.latest({
     migrationSource: new ExtensionAgnosticMigrationSource(),
     tableName: 'knex_migrations',
   })
+}
+
+/**
+ * Open the connection. Called once at boot.
+ *
+ * `runMigrations` defaults to true off-serverless and false on Vercel, where
+ * the build step has already migrated — override with the option or with
+ * RUN_MIGRATIONS_AT_BOOT.
+ */
+export async function initDb(opts?: { runMigrations?: boolean }): Promise<Knex> {
+  if (db) return db
+  db = knexFactory(knexConfig())
+  if (opts?.runMigrations ?? migrateAtBoot()) {
+    await runMigrations(db)
+  }
   return db
 }
 
