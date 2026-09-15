@@ -29,6 +29,12 @@ import webhookRouter from './routes/webhook'
 import gallaboxWebhookRouter from './routes/gallaboxWebhook'
 import simulatorRouter from './routes/simulator'
 
+/** True only when ENABLE_SIMULATOR is explicitly set to a truthy value. */
+function simulatorExplicitlyEnabled(): boolean {
+  const v = (process.env.ENABLE_SIMULATOR ?? '').toLowerCase()
+  return ['1', 'true', 'yes', 'on'].includes(v)
+}
+
 export async function createApp(): Promise<Express> {
   // ── AWS Secrets Manager (optional) ─────────────────────────────────────────
   // const { loadAwsSecretsIntoEnv } = await import('./aws/secretsManager')
@@ -83,8 +89,13 @@ export async function createApp(): Promise<Express> {
   app.use('/api/board', boardRouter)
   // Scheduled jobs as HTTP endpoints, so Vercel Cron can invoke them.
   app.use('/api/cron', cronRouter)
-  if (config.simulatorEnabled) {
-    // Dev-only in-app WhatsApp phone — exercises the same conversation engine.
+  // Dev-only in-app WhatsApp phone — it drives the real conversation engine with
+  // no authentication, so an accidentally-exposed one lets anyone post
+  // recognitions as any employee. config.simulatorEnabled defaults to ON
+  // whenever NODE_ENV is not "production", which is one missing environment
+  // variable away on a hosted deployment. On serverless it therefore requires an
+  // explicit ENABLE_SIMULATOR opt-in rather than inheriting that default.
+  if (isServerless ? simulatorExplicitlyEnabled() : config.simulatorEnabled) {
     app.use('/api/dev/simulator', simulatorRouter)
   }
 

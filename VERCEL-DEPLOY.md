@@ -134,7 +134,7 @@ working preview deploys — point those at a separate database).
 | `SESSION_SECRET` | 32+ random bytes — `openssl rand -hex 32`. The app refuses to boot in production with the dev default. |
 | `DATABASE_CLIENT` | `pg` |
 | `DATABASE_URL` | the string from §2 |
-| `VITE_BASE_PATH` | `/` — the console lives at the domain root on Vercel, not under `/acceleron_champ/` |
+| `VITE_BASE_PATH` | `/` — the console lives at the domain root on Vercel, not under `/acceleron_champ/`. **Build-time variable**: Vite bakes it into `index.html`, so it must exist *before* the build. Adding it to an already-deployed project does nothing until you redeploy. |
 | `CRON_SECRET` | `openssl rand -hex 32`. Vercel sends it as `Authorization: Bearer …` on cron calls; `/api/cron/*` rejects everything else. |
 | `ALLOWED_EMAIL_DOMAIN` | e.g. `acceleronsolutions.io` |
 | `ADMIN_EMAILS` | comma-separated |
@@ -169,8 +169,11 @@ is no good in production.
 | `SEED_DEMO_DATA` | `true` **only** if you want the demo directory loaded into an empty database. Leave unset for real data. |
 | `DARWINBOX_ENABLED` + `DARWINBOX_*` | if the nightly HRMS sync is in use |
 
-`NODE_ENV=production` and `VERCEL=1` are set by Vercel — don't add them.
-Don't set `PORT`; there's no listener.
+Don't set `PORT`; there's no listener. You don't need `NODE_ENV` either — Vercel
+doesn't reliably set it inside the function, so `api/index.js` derives it from
+`VERCEL_ENV` before any config is read. Check `/api/health` reports
+`"env":"production"`; if it says `development`, the app is running with production
+safety checks off (see §9).
 
 ---
 
@@ -189,7 +192,17 @@ curl -i https://<your-app>.vercel.app/api/cron/flag-scan          # → 401
 # 3. cron works with the secret
 curl -H "Authorization: Bearer $CRON_SECRET" \
      https://<your-app>.vercel.app/api/cron/flag-scan             # → {"ok":true,...}
+
+# 4. the dev WhatsApp simulator is NOT exposed
+curl -i https://<your-app>.vercel.app/api/dev/simulator/contacts  # → 404
+
+# 5. the console's assets load from the domain root, not /acceleron_champ/
+curl -s https://<your-app>.vercel.app/ | grep -o 'src="[^"]*"'
+# → src="/assets/index-xxxx.js"   (a /acceleron_champ/ prefix means VITE_BASE_PATH
+#                                  was missing when the build ran)
 ```
+
+In `/api/health`, `"env"` must read `production` and `"db"` must read `pg`.
 
 Then open the app, request an OTP, and confirm the email arrives. Check
 Vercel → Deployments → Build Logs for the `[migrate] migrations up to date` line, and
@@ -238,6 +251,13 @@ Worth knowing before they surprise you.
   directory sync of a large org can exceed that and get killed mid-run. On Pro you can
   raise it to 300; otherwise run the sync from a machine that isn't time-limited
   (`npm run sync:darwinbox -w server`).
+- **`NODE_ENV` is not guaranteed in the function.** `config.ts` falls back to
+  `development` when it is absent, and that fallback turns off three production
+  behaviours at once: the missing-`SESSION_SECRET` check, the `secure` flag on the
+  session cookie, and — worst — `ENABLE_SIMULATOR` defaults to ON, publishing the
+  unauthenticated dev WhatsApp simulator. `api/index.js` now sets `NODE_ENV` from
+  `VERCEL_ENV` before config loads, and `app.ts` additionally refuses to mount the
+  simulator on serverless without an explicit `ENABLE_SIMULATOR` opt-in. Keep both.
 - **npm 12 blocks dependency install scripts.** The root `package.json` carries an
   `allowScripts` block for `esbuild` and `better-sqlite3`. Remove it and the build
   still "succeeds" at install time, then `vite build` dies with *"You installed

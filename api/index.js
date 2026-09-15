@@ -12,13 +12,31 @@
  *   - no migrations at boot — they run once during the build
  *     (`npm run migrate -w server`, part of `vercel-build`).
  */
-const { createApp } = require('../server/dist/app.js')
+/**
+ * Normalise NODE_ENV BEFORE anything reads config.
+ *
+ * Vercel does not reliably set NODE_ENV inside the function runtime, and
+ * server/src/config.ts falls back to 'development' when it is absent. That
+ * fallback is not cosmetic: it flips config.isProd false, which (a) skips
+ * assertProductionSecrets() so a missing SESSION_SECRET silently signs
+ * sessions with the public dev default, (b) drops the `secure` flag from the
+ * session cookie, and (c) defaults ENABLE_SIMULATOR to ON, exposing the dev
+ * WhatsApp simulator publicly.
+ *
+ * VERCEL_ENV is the authoritative signal — Vercel always sets it to
+ * 'production' | 'preview' | 'development'. This runs before the require()
+ * below, because config.ts reads process.env at import time.
+ */
+if (!process.env.NODE_ENV && process.env.VERCEL_ENV) {
+  process.env.NODE_ENV = process.env.VERCEL_ENV === 'production' ? 'production' : 'development'
+}
 
 /** The app is built once per warm lambda and reused across invocations. */
 let appPromise = null
 
 function getApp() {
   if (!appPromise) {
+    const { createApp } = require('../server/dist/app.js')
     appPromise = createApp().catch((err) => {
       // Never cache a failed boot — the next request should retry.
       appPromise = null
