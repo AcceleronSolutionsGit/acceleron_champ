@@ -24,14 +24,12 @@ router.use(express.raw({ type: '*/*' }))
 // ── GET — subscription verification handshake ─────────────────────────────────
 
 router.get('/', (req: Request, res: Response) => {
-  const mode = req.query['hub.mode']
-  const token = req.query['hub.verify_token']
-  const challenge = req.query['hub.challenge']
-  if (mode === 'subscribe' && token === config.whatsapp.meta.verifyToken && typeof challenge === 'string') {
-    res.status(200).send(challenge)
+  const challenge = metaHandshake(req.query['hub.mode'], req.query['hub.verify_token'], req.query['hub.challenge'])
+  if (challenge === null) {
+    res.sendStatus(403)
     return
   }
-  res.sendStatus(403)
+  res.status(200).send(challenge)
 })
 
 // ── POST — event delivery ─────────────────────────────────────────────────────
@@ -98,30 +96,49 @@ function exactBody(req: Request): Buffer {
   return Buffer.alloc(0)
 }
 
-router.post('/', async (req: Request, res: Response) => {
-  const rawBody = exactBody(req)
+/**
+ * Meta's GET subscription handshake, framework-free so both the Express route
+ * and the Web-signature function in api/whatsapp.mjs can use it.
+ * Returns the challenge to echo, or null to answer 403.
+ */
+export function metaHandshake(
+  mode: unknown,
+  verifyToken: unknown,
+  challenge: unknown,
+): string | null {
+  if (mode === 'subscribe' && verifyToken === config.whatsapp.meta.verifyToken && typeof challenge === 'string') {
+    return challenge
+  }
+  return null
+}
 
-  // Signature: reject 401 when the app secret is configured; in local dev
-  // (no secret yet) warn once and continue so curl testing works.
+/**
+ * Verify the signature over `rawBody` and parse it into InboundMessages.
+ *
+ * Framework-free and byte-exact by contract: the CALLER is responsible for
+ * handing over the bytes Meta actually sent. On Vercel that means a Web
+ * signature handler and request.arrayBuffer() — the Node (req, res) helpers
+ * expose the body only as a lazily-parsed object, and re-serialising it
+ * produces equivalent JSON with different bytes, which the HMAC rejects.
+ */
+export function verifyAndParse(
+  rawBody: Buffer,
+  signatureHeader: string | undefined,
+  bytesAreExact = true,
+): { ok: boolean; messages: InboundMessage[] } {
   const appSecret = config.whatsapp.meta.appSecret
   if (appSecret) {
-    if (!verifySignature(rawBody, req.header('x-hub-signature-256'), appSecret)) {
-      // Say WHY, so a 401 in the logs is diagnosable. A mismatch on bytes we
-      // know are not the originals is an infrastructure problem (the body was
-      // parsed before we read it); a mismatch on exact bytes is a wrong
-      // META_WA_APP_SECRET or an unsigned caller.
-      const exact = (req as Request & { rawBodyIsExact?: boolean }).rawBodyIsExact
+    if (!verifySignature(rawBody, signatureHeader, appSecret)) {
       console.warn(
         `[webhook] signature mismatch — ${
           rawBody.length === 0
             ? 'no body bytes were captured'
-            : exact === false
+            : !bytesAreExact
               ? 'body bytes are RE-SERIALISED, not the originals — HMAC cannot match'
               : 'exact body bytes; check META_WA_APP_SECRET'
         } (${rawBody.length} bytes)`,
       )
-      res.sendStatus(401)
-      return
+      return { ok: false, messages: [] }
     }
   } else if (!warnedNoAppSecret) {
     warnedNoAppSecret = true
@@ -137,7 +154,18 @@ router.post('/', async (req: Request, res: Response) => {
     console.warn('[webhook] non-JSON payload ignored')
   }
 
-  const messages = payload ? toInboundMessages(payload) : []
+  return { ok: true, messages: payload ? toInboundMessages(payload) : [] }
+}
+
+router.post('/', async (req: Request, res: Response) => {
+  const rawBody = exactBody(req)
+  const bytesAreExact = (req as Request & { rawBodyIsExact?: boolean }).rawBodyIsExact !== false
+
+  const { ok, messages } = verifyAndParse(rawBody, req.header('x-hub-signature-256'), bytesAreExact)
+  if (!ok) {
+    res.sendStatus(401)
+    return
+  }
 
   if (messages.length === 0) {
     res.sendStatus(200)
@@ -196,7 +224,7 @@ function toInboundMessages(payload: MetaPayload): InboundMessage[] {
 /** Run the engine per message (sequentially — keeps per-user ordering) and
  *  send replies via the configured provider. Errors are logged, never thrown:
  *  the webhook already returned 200. */
-async function deliverAndReply(messages: InboundMessage[]): Promise<void> {
+export async function deliverAndReply(messages: InboundMessage[]): Promise<void> {
   for (const msg of messages) {
     try {
       const replies = await processInboundMessage(msg)

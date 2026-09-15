@@ -41,6 +41,7 @@ New files:
 - `server/src/runtime.ts` — `isServerless` / `migrateAtBoot` flags
 - `server/src/routes/cron.ts` — the three jobs as authenticated HTTP endpoints
 - `server/src/db/migrate.ts` — `npm run migrate -w server`
+- `api/whatsapp.mjs` — the Meta webhook, as a Web-signature function (see §9)
 
 `npm run dev`, `npm start` and the PM2 deployment behave exactly as before — every
 serverless branch is behind `process.env.VERCEL`, which only Vercel sets.
@@ -198,7 +199,11 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
 # 4. the dev WhatsApp simulator is NOT exposed
 curl -i https://<your-app>.vercel.app/api/dev/simulator/contacts  # → 404
 
-# 5. the console's assets load from the domain root, not /acceleron_champ/
+# 5. the webhook handshake endpoint answers (the Web-signature function)
+curl -i "https://<your-app>.vercel.app/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=$META_WA_VERIFY_TOKEN&hub.challenge=12345"
+# → 200 with body: 12345   (403 means META_WA_VERIFY_TOKEN does not match)
+
+# 6. the console's assets load from the domain root, not /acceleron_champ/
 curl -s https://<your-app>.vercel.app/ | grep -o 'src="[^"]*"'
 # → src="/assets/index-xxxx.js"   (a /acceleron_champ/ prefix means VITE_BASE_PATH
 #                                  was missing when the build ran)
@@ -275,15 +280,18 @@ Worth knowing before they surprise you.
 - **Rate limiting is per-instance.** `express-rate-limit` keeps counters in memory, so
   the OTP and API limits now apply per warm lambda rather than globally. For a real
   ceiling, move to `rate-limit-redis` with Upstash.
-- **The webhook body must be read as bytes, before anything parses it.**
-  `api/index.js` drains the request stream itself and never touches `req.body`
-  first. On Vercel `req.body` is a lazy accessor: reading it parses the JSON and
-  consumes the stream, and there is no `req.rawBody` to fall back on. Meta signs
-  the *bytes*, and re-serialising the parsed object gives equivalent JSON with
-  different bytes — which passes for plain ASCII and fails for anything carrying
-  an escaped character, so the bug shows up as a webhook that works for typed
-  messages and 401s on interactive replies. If you ever refactor this entry
-  point, keep the stream read ahead of any `req.body` access.
+- **The Meta webhook is deliberately NOT served by the Express app.**
+  `/webhook/whatsapp` is rewritten to `api/whatsapp.mjs`, a Web-signature
+  function, because that is the only shape on Vercel that yields the request
+  body as sent. Meta signs the exact bytes; Vercel's Node `(req, res)` handlers
+  drain the stream before the handler runs and expose the body only via the
+  lazily-parsed `req.body` helper, with no `req.rawBody` to recover it.
+  Re-serialising gives equivalent JSON with different bytes, which passes for
+  plain ASCII and fails for anything with an escaped character — a webhook that
+  works for typed messages and 401s on button and list taps. The verification
+  and delivery logic is shared with the Express route (`verifyAndParse` /
+  `deliverAndReply` in `server/src/routes/webhook.ts`), so there is one
+  implementation. Don't move this route back under `api/index.js`.
 - **The WhatsApp webhook is slower to ack.** It now completes the conversation-engine
   reply before returning 200, because a serverless instance stops executing the moment
   it responds. If Meta starts reporting delivery failures, that's the thing to look at.
