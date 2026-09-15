@@ -275,6 +275,15 @@ Worth knowing before they surprise you.
 - **Rate limiting is per-instance.** `express-rate-limit` keeps counters in memory, so
   the OTP and API limits now apply per warm lambda rather than globally. For a real
   ceiling, move to `rate-limit-redis` with Upstash.
+- **The webhook body must be read as bytes, before anything parses it.**
+  `api/index.js` drains the request stream itself and never touches `req.body`
+  first. On Vercel `req.body` is a lazy accessor: reading it parses the JSON and
+  consumes the stream, and there is no `req.rawBody` to fall back on. Meta signs
+  the *bytes*, and re-serialising the parsed object gives equivalent JSON with
+  different bytes — which passes for plain ASCII and fails for anything carrying
+  an escaped character, so the bug shows up as a webhook that works for typed
+  messages and 401s on interactive replies. If you ever refactor this entry
+  point, keep the stream read ahead of any `req.body` access.
 - **The WhatsApp webhook is slower to ack.** It now completes the conversation-engine
   reply before returning 200, because a serverless instance stops executing the moment
   it responds. If Meta starts reporting delivery failures, that's the thing to look at.

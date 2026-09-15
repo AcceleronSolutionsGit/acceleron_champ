@@ -106,6 +106,20 @@ router.post('/', async (req: Request, res: Response) => {
   const appSecret = config.whatsapp.meta.appSecret
   if (appSecret) {
     if (!verifySignature(rawBody, req.header('x-hub-signature-256'), appSecret)) {
+      // Say WHY, so a 401 in the logs is diagnosable. A mismatch on bytes we
+      // know are not the originals is an infrastructure problem (the body was
+      // parsed before we read it); a mismatch on exact bytes is a wrong
+      // META_WA_APP_SECRET or an unsigned caller.
+      const exact = (req as Request & { rawBodyIsExact?: boolean }).rawBodyIsExact
+      console.warn(
+        `[webhook] signature mismatch — ${
+          rawBody.length === 0
+            ? 'no body bytes were captured'
+            : exact === false
+              ? 'body bytes are RE-SERIALISED, not the originals — HMAC cannot match'
+              : 'exact body bytes; check META_WA_APP_SECRET'
+        } (${rawBody.length} bytes)`,
+      )
       res.sendStatus(401)
       return
     }
