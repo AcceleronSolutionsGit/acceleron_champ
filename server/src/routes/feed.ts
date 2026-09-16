@@ -12,6 +12,7 @@ import { Router } from 'express'
 import { Knex } from 'knex'
 import { z } from 'zod'
 import { getDb } from '../db/knex'
+import { getSettings } from '../modules/settings'
 import { istDayEndIso, istDayStartIso } from '../db/time'
 import { apiError } from '../middleware/errorHandler'
 import { asyncHandler, requireAuth } from '../middleware/requireAuth'
@@ -203,10 +204,19 @@ router.get(
       .orderBy('sort_order')
       .select('id', 'name', 'colour')) as { id: number; name: string; colour: string }[]
 
+    // The rules travel with the behaviours because the same screens need both,
+    // and every one of these is admin-configurable. A frontend that hardcodes
+    // "max 3 per month" tells people a rule the server does not enforce.
+    const settings = await getSettings()
+
     res.json({
       functions: functionRows.map((r) => r.function),
       sites: siteRows.map((r) => r.site),
       behaviours: behaviourRows,
+      rules: {
+        reasonMinLength: settings.reasonMinLength,
+        capPerPairPerMonth: settings.capPerPairPerMonth,
+      },
     })
   }),
 )

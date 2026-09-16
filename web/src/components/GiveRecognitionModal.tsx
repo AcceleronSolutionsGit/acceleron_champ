@@ -11,15 +11,6 @@ interface GiveRecognitionModalProps {
   initialRecipient?: EmployeeSearchHit | null
 }
 
-const DEFAULT_BEHAVIOURS: BehaviourRef[] = [
-  { id: 1, name: 'IMPACT', colour: '#19559c' },
-  { id: 2, name: 'CARING', colour: '#619c77' },
-  { id: 3, name: 'ENTREPRENEURSHIP', colour: '#ba232b' },
-  { id: 4, name: 'CUSTOMER CENTRICITY', colour: '#e58f00' },
-  { id: 5, name: 'INTEGRITY', colour: '#5a623e' },
-  { id: 6, name: 'INNOVATION', colour: '#752d81' },
-]
-
 export default function GiveRecognitionModal({
   onClose,
   onSuccess,
@@ -27,7 +18,34 @@ export default function GiveRecognitionModal({
 }: GiveRecognitionModalProps): React.ReactElement {
   const { user } = useAuth()
   const filterOpts = useApi(() => api.feedFilters(), [])
-  const behaviours = filterOpts.data?.behaviours?.length ? filterOpts.data.behaviours : DEFAULT_BEHAVIOURS
+  /**
+   * The behaviours come from the database, always, with no hardcoded fallback.
+   *
+   * There used to be one, with ids 1-6 baked in. It rendered while the real
+   * list was still loading, so a click could post a behaviourId that belonged
+   * to a completely different row once the behaviours changed — a recognition
+   * silently filed against the wrong value. An empty picker with a clear
+   * message is the honest failure; a plausible wrong one is not.
+   */
+  const behaviours: BehaviourRef[] = filterOpts.data?.behaviours ?? []
+
+  /**
+   * The rules come from the same payload, for the same reason.
+   *
+   * These used to be written into the markup: "min 15", "Max 3 recognitions per
+   * recipient monthly". The cap was simply wrong — it is configurable and was
+   * set to 2 — so the screen promised people a recognition the server would
+   * refuse. Both numbers now come from the database, and the fallbacks below
+   * only ever apply for the instant before the first response lands.
+   */
+  const minReason = filterOpts.data?.rules?.reasonMinLength ?? 15
+  const capPerMonth = filterOpts.data?.rules?.capPerPairPerMonth
+  /**
+   * The 50-character ceiling is a FRONTEND choice, not a server rule — the
+   * WhatsApp flow accepts any length. Kept as-is so the plant board keeps
+   * getting one-liners, but named rather than sprinkled through the file.
+   */
+  const MAX_REASON = 50
 
   // Recipient search & selection
   const [recipient, setRecipient] = useState<EmployeeSearchHit | null>(initialRecipient)
@@ -114,8 +132,8 @@ export default function GiveRecognitionModal({
       setError('Please describe what they did (at least 15 characters required).')
       return
     }
-    if (reasonText.trim().length > 50) {
-      setError('Reason description cannot exceed 50 characters.')
+    if (reasonText.trim().length > MAX_REASON) {
+      setError(`Reason description cannot exceed ${MAX_REASON} characters.`)
       return
     }
 
@@ -143,7 +161,7 @@ export default function GiveRecognitionModal({
   }
 
   const needGiverSelector = !user?.employeeId || user.role === 'admin'
-  const isReasonValid = reasonText.trim().length >= 15 && reasonText.trim().length <= 50
+  const isReasonValid = reasonText.trim().length >= minReason && reasonText.trim().length <= MAX_REASON
 
   return (
     <Modal title="🏆 Give Spot Recognition" onClose={onClose} wide>
@@ -265,6 +283,16 @@ export default function GiveRecognitionModal({
               {/* Behaviour Selection Grid */}
               <div className="form-group">
                 <label className="form-label">CHAMP Behaviour Demonstrated *</label>
+                {filterOpts.loading && behaviours.length === 0 && (
+                  <div className="feed-meta">Loading behaviours…</div>
+                )}
+                {!filterOpts.loading && behaviours.length === 0 && (
+                  <div className="form-error" style={{ marginTop: 0 }}>
+                    {filterOpts.error
+                      ? 'Could not load the CHAMP behaviours. Refresh the page and try again.'
+                      : 'No CHAMP behaviours are active. An admin needs to enable at least one in Console → Behaviours.'}
+                  </div>
+                )}
                 <div className="behaviour-select-grid">
                   {behaviours.map((b) => {
                     const selected = behaviourId === b.id
@@ -302,13 +330,13 @@ export default function GiveRecognitionModal({
                       color: !isReasonValid ? 'var(--warn)' : 'var(--green-700)',
                     }}
                   >
-                    {reasonText.length} / 50 chars (min 15, max 50)
+                    {reasonText.length} / {MAX_REASON} chars (min {minReason}, max {MAX_REASON})
                   </span>
                 </div>
                 <textarea
                   className="input"
                   rows={4}
-                  maxLength={50}
+                  maxLength={MAX_REASON}
                   placeholder="e.g. Ensured strict plant safety protocols & timely delivery..."
                   value={reasonText}
                   onChange={(e) => setReasonText(e.target.value)}
@@ -324,13 +352,17 @@ export default function GiveRecognitionModal({
                 </div>
                 <ul className="disclaimer-list">
                   <li>
-                    <strong>Length constraint:</strong> 15 to 50 characters.
+                    <strong>Length constraint:</strong> {minReason} to {MAX_REASON} characters.
                   </li>
                   <li>
                     <strong>Be Specific:</strong> Generic terms like <em>"good job"</em> or <em>"nice work"</em> are blocked.
                   </li>
                   <li>
-                    <strong>Policy:</strong> Max 3 recognitions per recipient monthly. Self-recognition is disallowed.
+                    <strong>Policy:</strong>{' '}
+                    {capPerMonth
+                      ? `Max ${capPerMonth} recognition${capPerMonth === 1 ? '' : 's'} per recipient monthly.`
+                      : 'A monthly cap applies per recipient.'}{' '}
+                    Self-recognition is disallowed.
                   </li>
                 </ul>
               </div>
@@ -340,7 +372,12 @@ export default function GiveRecognitionModal({
                 <Button variant="ghost" onClick={onClose} disabled={submitting}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary" busy={submitting} disabled={!recipient || !behaviourId || !isReasonValid}>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  busy={submitting}
+                  disabled={!recipient || !behaviourId || !isReasonValid || behaviours.length === 0}
+                >
                   ✨ Submit Recognition
                 </Button>
               </div>

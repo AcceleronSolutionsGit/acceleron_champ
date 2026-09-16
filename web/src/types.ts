@@ -52,6 +52,8 @@ export interface FeedFilterOptions {
   functions: string[]
   sites: string[]
   behaviours: BehaviourRef[]
+  /** Admin-configurable recognition rules, so no screen has to hardcode them. */
+  rules?: { reasonMinLength: number; capPerPairPerMonth: number }
 }
 
 /** Full behaviour row (admin console). DB booleans are 0/1 integers. */

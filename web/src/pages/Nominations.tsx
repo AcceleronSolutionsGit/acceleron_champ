@@ -390,8 +390,8 @@ export default function Nominations(): React.ReactElement {
                 quarters, not this one.
               </li>
               <li>
-                <strong>Match the behaviour you picked.</strong> If you claimed INNOVATION, the evidence
-                has to be about doing something new — not about working hard on something familiar.
+                <strong>Match the behaviour you picked.</strong> The evidence has to be evidence of{' '}
+                <em>that</em> behaviour, not a general account of a good quarter.
               </li>
             </ul>
           </Card>
