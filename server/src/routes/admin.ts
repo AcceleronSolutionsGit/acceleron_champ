@@ -301,10 +301,21 @@ const settingsBody = z
     flagLoopMinTotal: z.number().int().min(2).max(50),
     weeklyDigestEnabled: z.boolean(),
     digestAudience: z.enum(['all', 'leadership']),
+    nominationsEnabled: z.boolean(),
+    nominationEvidenceMinLength: z.number().int().min(50).max(2000),
+    nominationEvidenceMaxLength: z.number().int().min(200).max(10_000),
+    nominationGraceDays: z.number().int().min(0).max(120),
   })
   .partial()
   .strict()
   .refine((patch) => Object.keys(patch).length > 0, 'Provide at least one setting to change')
+  .refine(
+    (patch) =>
+      patch.nominationEvidenceMinLength === undefined ||
+      patch.nominationEvidenceMaxLength === undefined ||
+      patch.nominationEvidenceMinLength < patch.nominationEvidenceMaxLength,
+    'The minimum evidence length must be below the maximum',
+  )
 
 router.put(
   '/settings',

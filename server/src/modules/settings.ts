@@ -21,6 +21,21 @@ export interface AppSettings {
   /** FR-20 — weekly digest. */
   weeklyDigestEnabled: boolean
   digestAudience: 'all' | 'leadership'
+  /** Quarterly self-nomination — master switch for the whole feature. */
+  nominationsEnabled: boolean
+  /**
+   * Evidence length bounds. The floor is the quality gate that makes the
+   * difference between "I worked hard" and something a manager can actually
+   * stand behind; the ceiling keeps the committee's reading pile finite.
+   */
+  nominationEvidenceMinLength: number
+  nominationEvidenceMaxLength: number
+  /**
+   * Days after a quarter ENDS during which it can still be nominated for.
+   * Nobody writes up their quarter on 31 March — the window is what makes the
+   * feature usable without leaving quarters open forever.
+   */
+  nominationGraceDays: number
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -49,6 +64,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
   flagLoopMinTotal: 3,
   weeklyDigestEnabled: true,
   digestAudience: 'all',
+  nominationsEnabled: true,
+  nominationEvidenceMinLength: 200,
+  nominationEvidenceMaxLength: 2500,
+  nominationGraceDays: 30,
 }
 
 let cache: AppSettings | null = null

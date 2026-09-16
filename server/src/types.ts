@@ -63,6 +63,66 @@ export interface Flag {
   created_at: string
 }
 
+// ── Quarterly self-nomination ─────────────────────────────────────────────────
+
+export type NominationStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn'
+
+/** Raw `nominations` row. Timestamps are ISO-8601 UTC strings. */
+export interface Nomination {
+  id: number
+  employee_id: number
+  submitted_manager_id: number | null
+  quarter: string // 'FY2026-Q2'
+  quarter_start: string
+  quarter_end: string
+  title: string
+  evidence_text: string
+  status: NominationStatus
+  decided_by_employee_id: number | null
+  decided_by_email: string | null
+  decided_at: string | null
+  decision_note: string | null
+  created_at: string
+  updated_at: string
+}
+
+/** API shape — camelCase, with the people and the quarter resolved. */
+export interface NominationItem {
+  id: number
+  quarter: { code: string; label: string; months: string }
+  title: string
+  evidence: string
+  status: NominationStatus
+  employee: PersonLite & { employeeCode?: string; levelGrade?: string }
+  /** The manager who must decide, resolved live from the directory. */
+  manager: PersonLite | null
+  decision: {
+    /** Display name of whoever decided, falling back to their email. */
+    by: string | null
+    byEmail: string | null
+    at: string | null
+    note: string | null
+  } | null
+  createdAt: string
+  updatedAt: string
+  /** True when the signed-in employee may still edit or withdraw this. */
+  editable?: boolean
+}
+
+export type NominationErrorCode =
+  | 'NOMINATIONS_DISABLED'
+  | 'NOT_LINKED'
+  | 'EMPLOYEE_INACTIVE'
+  | 'NO_MANAGER'
+  | 'UNKNOWN_QUARTER'
+  | 'QUARTER_CLOSED'
+  | 'EVIDENCE_TOO_SHORT'
+  | 'EVIDENCE_TOO_LONG'
+  | 'ALREADY_APPROVED'
+  | 'ALREADY_DECIDED'
+  | 'NOT_YOUR_REPORT'
+  | 'NOT_FOUND'
+
 export type Role = 'employee' | 'committee' | 'admin'
 
 export interface SessionUser {

@@ -230,6 +230,67 @@ export interface AppSettings {
   flagLoopMinTotal: number
   weeklyDigestEnabled: boolean
   digestAudience: 'all' | 'leadership'
+  nominationsEnabled: boolean
+  nominationEvidenceMinLength: number
+  nominationEvidenceMaxLength: number
+  nominationGraceDays: number
+}
+
+// ── Quarterly self-nomination ────────────────────────────────────────────────
+
+export type NominationStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn'
+
+/** Indian financial-year quarter: Q1 = Apr–Jun. `code` looks like 'FY2026-Q2'. */
+export interface Quarter {
+  code: string
+  index: 1 | 2 | 3 | 4
+  fyStartYear: number
+  label: string
+  months: string
+  startIso: string
+  endIso: string
+}
+
+export interface NominationItem {
+  id: number
+  quarter: { code: string; label: string; months: string }
+  title: string
+  evidence: string
+  status: NominationStatus
+  employee: PersonLite & { employeeCode?: string; levelGrade?: string }
+  manager: PersonLite | null
+  decision: { by: string | null; byEmail: string | null; at: string | null; note: string | null } | null
+  createdAt: string
+  updatedAt: string
+  /** Present on /mine — whether the owner may still change it. */
+  editable?: boolean
+}
+
+/** GET /api/nominations/mine */
+export interface MyNominationsResponse {
+  quartersOpen: Quarter[]
+  items: NominationItem[]
+  manager: PersonLite | null
+  limits: { minLength: number; maxLength: number; enabled: boolean }
+}
+
+/** GET /api/nominations/quarters */
+export interface QuarterOptions {
+  open: Quarter[]
+  recent: Quarter[]
+  enabled: boolean
+  minLength: number
+  maxLength: number
+  graceDays: number
+}
+
+/** GET /api/nominations/all */
+export interface NominationsPage {
+  items: NominationItem[]
+  total: number
+  page: number
+  pageSize: number
+  counts: Record<NominationStatus, number>
 }
 
 export interface AuditEntry {

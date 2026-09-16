@@ -6,6 +6,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { hasRole, useAuth } from '../auth'
+import { api } from '../api'
 import { Button } from './ui'
 import GiveRecognitionModal from './GiveRecognitionModal'
 
@@ -14,7 +15,43 @@ export default function Layout(): React.ReactElement {
   const navigate = useNavigate()
   const [giveModalOpen, setGiveModalOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [approvals, setApprovals] = useState({ isManager: false, pending: 0 })
   const userMenuRef = useRef<HTMLDivElement>(null)
+
+  /**
+   * Pending-approval count for the nav badge.
+   *
+   * This is the ONLY way a manager learns there is something waiting — we
+   * deliberately push nothing to WhatsApp or email, so the badge has to be
+   * right. It refreshes on mount, whenever the approvals page decides
+   * something, and on a slow poll for decisions made in another tab. The
+   * endpoint returns a single integer, so polling it is cheap.
+   */
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    const refresh = () => {
+      api
+        .approvalCount()
+        .then((res) => {
+          if (!cancelled) setApprovals(res)
+        })
+        .catch(() => {
+          /* a failed badge must never break the shell */
+        })
+    }
+    refresh()
+    const onChanged = () => refresh()
+    window.addEventListener('champ:approvals-changed', onChanged)
+    const poll = window.setInterval(() => {
+      if (!document.hidden) refresh()
+    }, 120_000)
+    return () => {
+      cancelled = true
+      window.removeEventListener('champ:approvals-changed', onChanged)
+      window.clearInterval(poll)
+    }
+  }, [user])
 
   const onLogout = async () => {
     setUserMenuOpen(false)
@@ -56,6 +93,22 @@ export default function Layout(): React.ReactElement {
             <NavLink to="/people" className={({ isActive }) => (isActive ? 'active' : '')}>
               👥 Directory
             </NavLink>
+            <NavLink to="/nominations" className={({ isActive }) => (isActive ? 'active' : '')}>
+              🏅 My Nomination
+            </NavLink>
+            {/* Visible to anyone with a direct report — being a manager here
+                IS having someone report to you, so there is no role to grant.
+                The badge appears only when something is actually waiting. */}
+            {approvals.isManager && (
+              <NavLink to="/approvals" className={({ isActive }) => (isActive ? 'active' : '')}>
+                ✅ Approvals
+                {approvals.pending > 0 && (
+                  <span className="nav-badge" aria-label={`${approvals.pending} awaiting your approval`}>
+                    {approvals.pending}
+                  </span>
+                )}
+              </NavLink>
+            )}
             {hasRole(user, 'committee') && (
               <NavLink to="/analytics" className={({ isActive }) => (isActive ? 'active' : '')}>
                 📊 Analytics

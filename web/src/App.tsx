@@ -11,6 +11,8 @@ import Layout from './components/Layout'
 import Login from './pages/Login'
 import Feed from './pages/Feed'
 import People from './pages/People'
+import Nominations from './pages/Nominations'
+import Approvals from './pages/Approvals'
 import Board from './pages/Board'
 import BoardPrint from './pages/BoardPrint'
 import Simulator from './pages/Simulator'
@@ -41,6 +43,11 @@ export default function App(): React.ReactElement {
             >
               <Route path="feed" element={<Feed />} />
               <Route path="people" element={<People />} />
+              {/* Both open to any signed-in employee: /approvals simply shows an
+                  empty queue to someone with no direct reports, which is the
+                  honest answer and cheaper than a role that has to be granted. */}
+              <Route path="nominations" element={<Nominations />} />
+              <Route path="approvals" element={<Approvals />} />
               <Route path="people/:id" element={<PersonProfile />} />
               <Route
                 path="analytics"

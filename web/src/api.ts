@@ -29,8 +29,13 @@ import type {
   FeedItem,
   FlagItem,
   FunctionShiftSplit,
+  MyNominationsResponse,
+  NominationItem,
+  NominationsPage,
+  NominationStatus,
   Paged,
   ProfileResponse,
+  QuarterOptions,
   SessionUser,
   SimContact,
   SimEntry,
@@ -296,6 +301,30 @@ export const api = {
   },
   digestPreview: () => request<DigestPreview>('GET', '/api/admin/digest-preview'),
 
+  // quarterly self-nomination
+  nominationQuarters: () => request<QuarterOptions>('GET', '/api/nominations/quarters'),
+  myNominations: () => request<MyNominationsResponse>('GET', '/api/nominations/mine'),
+  submitNomination: (payload: { quarter: string; title: string; evidence: string }) =>
+    request<{ ok: boolean; item: NominationItem }>('POST', '/api/nominations', payload),
+  withdrawNomination: (id: number) =>
+    request<{ ok: boolean; item: NominationItem }>('POST', `/api/nominations/${id}/withdraw`),
+  // manager approvals — resolved from the DarwinBox reporting line, not a role
+  approvalQueue: async (status?: NominationStatus | 'all') =>
+    asArray<NominationItem>(
+      await request<unknown>('GET', '/api/nominations/approvals', undefined, { status }),
+      'items',
+    ),
+  approvalCount: () =>
+    request<{ isManager: boolean; pending: number }>('GET', '/api/nominations/approvals/count'),
+  decideNomination: (id: number, decision: 'approved' | 'rejected', note?: string) =>
+    request<{ ok: boolean; item: NominationItem }>('POST', `/api/nominations/${id}/decide`, {
+      decision,
+      note: note || undefined,
+    }),
+  // committee-wide view
+  allNominations: (params: QueryParams) =>
+    request<NominationsPage>('GET', '/api/nominations/all', undefined, params),
+
   // board (kiosk — no auth; optional ?token=)
   boardFeed: async (params: QueryParams) =>
     asArray<FeedItem>(await request<unknown>('GET', '/api/board/feed', undefined, params)),
@@ -318,4 +347,9 @@ export const api = {
  */
 export function exportUrl(params: QueryParams): string {
   return '/api/admin/export' + qs(params)
+}
+
+/** Nomination CSV download URL — same same-origin-navigation trick as above. */
+export function nominationExportUrl(params: QueryParams): string {
+  return `${API_BASE}/nominations/all/export${qs(params)}`
 }

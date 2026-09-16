@@ -8,6 +8,7 @@ import React from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { hasRole, useAuth } from '../../auth'
 import Moderation from './Moderation'
+import NominationsTab from './NominationsTab'
 import Behaviours from './Behaviours'
 import SettingsTab from './SettingsTab'
 import Employees from './Employees'
@@ -24,6 +25,7 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { id: 'moderation', label: '🛡️ Moderation', adminOnly: false, render: () => <Moderation /> },
+  { id: 'nominations', label: '🏅 Nominations', adminOnly: false, render: () => <NominationsTab /> },
   { id: 'behaviours', label: '🏷️ Behaviours', adminOnly: true, render: () => <Behaviours /> },
   { id: 'settings', label: '⚙️ Settings', adminOnly: true, render: () => <SettingsTab /> },
   { id: 'employees', label: '👥 Employees', adminOnly: true, render: () => <Employees /> },

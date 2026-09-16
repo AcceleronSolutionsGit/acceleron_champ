@@ -160,6 +160,59 @@ export default function SettingsTab(): React.ReactElement {
 
           <div style={{ height: 16 }} />
 
+          <Card
+            title="Quarterly self-nomination"
+            sub="Employees nominate themselves each quarter; their reporting manager approves"
+          >
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={draft.nominationsEnabled}
+                onChange={(e) => set('nominationsEnabled', e.target.checked)}
+              />
+              Accept new self-nominations
+            </label>
+            <div className="form-grid" style={{ marginTop: 12 }}>
+              <Field label="Minimum evidence length">
+                <input
+                  className="input"
+                  type="number"
+                  min={50}
+                  max={2000}
+                  required
+                  value={draft.nominationEvidenceMinLength}
+                  onChange={(e) => set('nominationEvidenceMinLength', Number(e.target.value))}
+                />
+              </Field>
+              <Field label="Maximum evidence length">
+                <input
+                  className="input"
+                  type="number"
+                  min={200}
+                  max={10000}
+                  required
+                  value={draft.nominationEvidenceMaxLength}
+                  onChange={(e) => set('nominationEvidenceMaxLength', Number(e.target.value))}
+                />
+              </Field>
+              <Field label="Late-filing window (days after a quarter ends)">
+                <input
+                  className="input"
+                  type="number"
+                  min={0}
+                  max={120}
+                  required
+                  value={draft.nominationGraceDays}
+                  onChange={(e) => set('nominationGraceDays', Number(e.target.value))}
+                />
+              </Field>
+            </div>
+            <div className="feed-meta" style={{ marginTop: 10 }}>
+              Quarters follow the Indian financial year — Q1 is Apr–Jun. A quarter stays open for the
+              window above, then closes so the committee shortlists from a stable set.
+            </div>
+          </Card>
+
           <div style={{ height: 16 }} />
 
           <Card title="Weekly digest" sub="FR-20 — a WhatsApp round-up every Monday morning">

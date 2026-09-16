@@ -24,6 +24,7 @@ import employeesRouter from './routes/employees'
 import adminRouter from './routes/admin'
 import analyticsRouter from './routes/analytics'
 import boardRouter from './routes/board'
+import nominationsRouter from './routes/nominations'
 import cronRouter from './routes/cron'
 import webhookRouter from './routes/webhook'
 import gallaboxWebhookRouter from './routes/gallaboxWebhook'
@@ -87,6 +88,8 @@ export async function createApp(): Promise<Express> {
   app.use('/api/admin', adminRouter)
   app.use('/api/analytics', analyticsRouter)
   app.use('/api/board', boardRouter)
+  // Quarterly self-nomination: employee filing, manager approval, committee view.
+  app.use('/api/nominations', nominationsRouter)
   // Scheduled jobs as HTTP endpoints, so Vercel Cron can invoke them.
   app.use('/api/cron', cronRouter)
   // Dev-only in-app WhatsApp phone — it drives the real conversation engine with
