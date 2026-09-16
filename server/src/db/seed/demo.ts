@@ -46,13 +46,18 @@ const LAST_NAMES = [
   'Hazra', 'Middya', 'Oraon',
 ]
 
+/**
+ * Demo/dev seed only. The AUTHORITATIVE set and order for a real database is
+ * migration 008_set_champ_behaviours.ts, which runs on every deploy — keep the
+ * two in step so a fresh local database matches production.
+ */
 export const BEHAVIOUR_SEED = [
   { name: 'IMPACT', description: 'Outcomes that outlast the project.', colour: '#19559c', sort_order: 1 },
-  { name: 'CARING', description: 'People first in every decision.', colour: '#619c77', sort_order: 2 },
-  { name: 'ENTREPRENEURSHIP', description: 'Own it. Drive it. Deliver it.', colour: '#ba232b', sort_order: 3 },
-  { name: 'CUSTOMER CENTRICITY', description: 'Your outcomes. Our responsibility.', colour: '#e58f00', sort_order: 4 },
-  { name: 'INTEGRITY', description: 'Do right. Always.', colour: '#5a623e', sort_order: 5 },
-  { name: 'INNOVATION', description: 'Think ahead. Build what\'s next.', colour: '#752d81', sort_order: 6 },
+  { name: 'INNOVATION', description: 'Think ahead. Build what\'s next.', colour: '#752d81', sort_order: 2 },
+  { name: 'INTEGRITY', description: 'Do right. Always.', colour: '#5a623e', sort_order: 3 },
+  { name: 'CARING', description: 'People first in every decision.', colour: '#619c77', sort_order: 4 },
+  { name: 'CUSTOMER CENTRICITY', description: 'Your outcomes. Our responsibility.', colour: '#e58f00', sort_order: 5 },
+  { name: 'ENTREPRENEURSHIP', description: 'Own it. Drive it. Deliver it.', colour: '#ba232b', sort_order: 6 },
 ]
 
 const REASONS: Record<string, string[]> = {
