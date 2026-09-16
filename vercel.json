@@ -17,7 +17,8 @@
   "crons": [
     { "path": "/api/cron/darwinbox-sync", "schedule": "0 21 * * *" },
     { "path": "/api/cron/flag-scan", "schedule": "45 21 * * *" },
-    { "path": "/api/cron/weekly-digest", "schedule": "30 3 * * 1" }
+    { "path": "/api/cron/weekly-digest", "schedule": "30 3 * * 1" },
+    { "path": "/api/cron/flow-reminder", "schedule": "* * * * *" }
   ],
   "rewrites": [
     { "source": "/webhook/whatsapp", "destination": "/api/whatsapp" },

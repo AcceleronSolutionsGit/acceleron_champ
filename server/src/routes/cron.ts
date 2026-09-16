@@ -20,6 +20,7 @@ import crypto from 'crypto'
 import { runDirectorySync } from '../modules/sync/darwinbox'
 import { nightlySweep } from '../modules/flags/flagScan'
 import { sendWeeklyDigest } from '../modules/digest/digest'
+import { sendInactivityReminders } from '../modules/conversation/reminder'
 
 const router = Router()
 
@@ -27,7 +28,14 @@ const JOBS: Record<string, () => Promise<unknown>> = {
   'darwinbox-sync': runDirectorySync,
   'flag-scan': nightlySweep,
   'weekly-digest': sendWeeklyDigest,
+  // Minute-resolution. On Vercel this needs a Pro plan (Hobby cron is limited
+  // to one run per day); any external minute scheduler hitting this endpoint
+  // with the CRON_SECRET bearer works just as well.
+  'flow-reminder': sendInactivityReminders,
 }
+
+/** Jobs whose every-minute completion line would flood the log. */
+const QUIET_JOBS = new Set(['flow-reminder'])
 
 /** Constant-time bearer check against CRON_SECRET. */
 function authorized(req: Request): boolean {
@@ -61,7 +69,8 @@ async function handle(req: Request, res: Response): Promise<void> {
   try {
     const result = await job()
     const seconds = Number(((Date.now() - startedAt) / 1000).toFixed(1))
-    console.log(`[cron] ${name} completed in ${seconds}s`)
+    const idle = QUIET_JOBS.has(name) && (result as { sent?: number } | undefined)?.sent === 0
+    if (!idle) console.log(`[cron] ${name} completed in ${seconds}s`)
     res.json({ ok: true, job: name, seconds, result: result ?? null })
   } catch (err) {
     console.error(`[cron] ${name} failed:`, err)

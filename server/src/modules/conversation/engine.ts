@@ -10,20 +10,22 @@
  * route) is responsible for delivering them. Recipient notification (FR-19)
  * is triggered here right after a successful create.
  */
+import { config } from '../../config'
 import { getDb } from '../../db/knex'
 import { nowIso } from '../../db/time'
 import { Behaviour, BotReply, CreateRecognitionResult, Employee, InboundMessage } from '../../types'
 import { AppSettings, getSettings } from '../settings'
 import { createRecognition } from '../rules/recognitionService'
 import { notifyRecipient } from '../notifications'
+import { recordInbound } from '../outbound'
 import { toE164 } from '../sync/darwinbox'
 import { Lang, normalizeLang, t } from './i18n'
 
 // ── persisted state ───────────────────────────────────────────────────────────
 
-type Step = 'menu' | 'dpdp_consent' | 'recipient_query' | 'behaviour' | 'reason'
+export type Step = 'menu' | 'dpdp_consent' | 'recipient_query' | 'behaviour' | 'reason'
 
-interface ConvState {
+export interface ConvState {
   step: Step
   lang: Lang
   data: {
@@ -33,10 +35,20 @@ interface ConvState {
     behaviourId?: number
   }
   updatedAt: string
+  /**
+   * When the single mid-flow inactivity reminder was sent for THIS state
+   * (modules/conversation/reminder.ts). Absent means "not yet reminded".
+   *
+   * It lives inside the state blob rather than in its own column on purpose:
+   * saveState() rewrites the blob wholesale on every step change, so the marker
+   * is cleared by any real activity and re-armed for the next idle period —
+   * which is precisely the rule "one reminder per abandoned flow".
+   */
+  remindedAt?: string
 }
 
-/** FR-10 — an unfinished flow can be resumed for 30 minutes, then we greet fresh. */
-const STATE_TTL_MS = 30 * 60 * 1000
+/** FR-10 — an unfinished flow can be resumed for this long, then we greet fresh. */
+const STATE_TTL_MS = config.conversation.stateTtlMinutes * 60 * 1000
 
 /** WhatsApp allows at most 10 list rows; we show 8 and ask to narrow beyond that. */
 const MAX_LIST_ROWS = 8
@@ -54,6 +66,13 @@ const COUNT_RE = /^(my ?count|count)$/
 export async function processInboundMessage(msg: InboundMessage): Promise<BotReply[]> {
   const db = getDb()
   const mobile = toE164(msg.mobile) ?? msg.mobile
+
+  // Every inbound message, registered sender or not, opens/refreshes this
+  // number's customer-service window. modules/outbound.ts reads it to decide
+  // whether the bot is allowed to message them unprompted, and the inactivity
+  // reminder is scheduled from the state row this message is about to write.
+  await recordInbound(mobile)
+
   const giver = (await db('employees').where({ mobile }).first()) as Employee | undefined
 
   if (!giver || !giver.active) {
@@ -526,20 +545,54 @@ async function countSummary(giver: Employee, lang: Lang): Promise<BotReply[]> {
 
 // ── state persistence (conversation_state, keyed by mobile) ───────────────────
 
+/**
+ * Parse a stored state blob without touching the database — shared with the
+ * reminder sweep, which has already SELECTed the row and must not delete
+ * anything it finds malformed (that is loadState's job, on the next inbound).
+ * Returns null for anything unusable.
+ */
+export function parseState(raw: string): ConvState | null {
+  let parsed: ConvState
+  try {
+    parsed = JSON.parse(raw) as ConvState
+  } catch {
+    return null
+  }
+  if (!parsed || typeof parsed !== 'object' || typeof parsed.step !== 'string') return null
+  parsed.lang = normalizeLang(parsed.lang)
+  parsed.data = parsed.data ?? {}
+  return parsed
+}
+
+/**
+ * Stamp the state as reminded, WITHOUT touching updated_at.
+ *
+ * The distinction matters: updated_at is the resume clock (FR-10). If sending a
+ * reminder refreshed it, the bot would be extending the user's own session on
+ * their behalf, and the flow would outlive the window they were told about.
+ * A no-op if the row has moved on in the meantime — the user came back, and the
+ * reminder that was in flight is simply obsolete.
+ */
+export async function markReminded(mobile: string, at: string = nowIso()): Promise<void> {
+  const db = getDb()
+  const row = (await db('conversation_state').where({ mobile }).first('state')) as
+    | { state: string }
+    | undefined
+  if (!row) return
+  const parsed = parseState(row.state)
+  if (!parsed || parsed.remindedAt) return
+  parsed.remindedAt = at
+  await db('conversation_state').where({ mobile }).update({ state: JSON.stringify(parsed) })
+}
+
 async function loadState(mobile: string): Promise<ConvState | null> {
   const db = getDb()
   const row = (await db('conversation_state').where({ mobile }).first()) as
     | { state: string; updated_at: string }
     | undefined
   if (!row) return null
-  let parsed: ConvState
-  try {
-    parsed = JSON.parse(row.state) as ConvState
-  } catch {
-    await clearState(mobile)
-    return null
-  }
-  if (!parsed || typeof parsed !== 'object' || typeof parsed.step !== 'string') {
+  const parsed = parseState(row.state)
+  if (!parsed) {
     await clearState(mobile)
     return null
   }
@@ -548,12 +601,17 @@ async function loadState(mobile: string): Promise<ConvState | null> {
     await clearState(mobile) // FR-10 — expired: next contact greets fresh
     return null
   }
-  parsed.lang = normalizeLang(parsed.lang)
-  parsed.data = parsed.data ?? {}
   return parsed
 }
 
-async function saveState(mobile: string, state: Omit<ConvState, 'updatedAt'>): Promise<void> {
+/**
+ * Persist a step transition.
+ *
+ * Note what is NOT carried over: `remindedAt`. Writing a new state means the
+ * user just did something, so the flow is live again and re-arms for one
+ * reminder if they go quiet from here.
+ */
+async function saveState(mobile: string, state: Omit<ConvState, 'updatedAt' | 'remindedAt'>): Promise<void> {
   const full: ConvState = { ...state, updatedAt: nowIso() }
   await getDb()('conversation_state')
     .insert({ mobile, state: JSON.stringify(full), updated_at: full.updatedAt })

@@ -28,5 +28,9 @@
   "dpdp_consent": "🔒 Under the Digital Personal Data Protection Act (DPDP), 2023, Acceleron Solutions processes your name, phone number and recognition data for this programme.\n\nBy tapping 'I Agree' you give your consent. You may withdraw anytime by contacting HR.",
   "dpdp_agree": "I Agree",
   "dpdp_decline": "Decline",
-  "dpdp_declined": "You've chosen not to give consent. You won't be able to use Acceleron Champ without it. If you change your mind, just message us again."
+  "dpdp_declined": "You've chosen not to give consent. You won't be able to use Acceleron Champ without it. If you change your mind, just message us again.",
+  "reminder_consent": "Still there? 👋 Tap 'I Agree' when you're ready and we'll get started. This is the only nudge I'll send — message me anytime to pick up where you left off.",
+  "reminder_recipient": "Still there? 👋 Just send me the name of the person you'd like to recognise. This is the only nudge I'll send — message me anytime to pick up where you left off.",
+  "reminder_behaviour": "Still there? 👋 Pick the CHAMP behaviour {name} showed and you're nearly done. This is the only nudge I'll send — message me anytime to pick up where you left off.",
+  "reminder_reason": "Still there? 👋 One line on what {name} did and your recognition is in. This is the only nudge I'll send — message me anytime to pick up where you left off."
 }

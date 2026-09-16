@@ -108,10 +108,40 @@ function buildConfig() {
     },
     simulatorEnabled: bool(env.ENABLE_SIMULATOR, !isProd),
     boardToken: env.BOARD_TOKEN || null,
+    /**
+     * Outbound messaging policy — what the bot is allowed to send on its own
+     * initiative, as opposed to replying to something the user just sent.
+     *
+     * The programme's default is REPLY-ONLY: a recognition notification or a
+     * weekly digest is delivered only to someone whose WhatsApp customer-service
+     * window is still open (i.e. they messaged the bot within the last
+     * `sessionWindowHours`). Anyone else is skipped and the skip is logged.
+     * That is also what keeps the bot off people's phones at 2am — it can only
+     * reach a conversation the person themself started.
+     *
+     * Set PROACTIVE_REQUIRES_SESSION=false to restore unconditional broadcasts
+     * (both sends then go out as approved templates, as WhatsApp requires
+     * outside the window — FR-21).
+     */
+    outbound: {
+      proactiveRequiresSession: bool(env.PROACTIVE_REQUIRES_SESSION, true),
+      sessionWindowHours: num(env.SESSION_WINDOW_HOURS, 24),
+    },
+    /** Conversation state machine timings (FR-10 + the inactivity nudge). */
+    conversation: {
+      /** Resume window: an unfinished flow older than this is greeted fresh. */
+      stateTtlMinutes: num(env.CONVERSATION_STATE_TTL_MINUTES, 30),
+      /** Master switch for the single mid-flow inactivity reminder. */
+      remindersEnabled: bool(env.REMINDERS_ENABLED, true),
+      /** Idle minutes before that one reminder fires. Never fires twice. */
+      reminderAfterMinutes: num(env.REMINDER_AFTER_MINUTES, 5),
+    },
     cron: {
       darwinboxSync: env.SYNC_CRON ?? '30 2 * * *',
       flagScan: env.FLAGSCAN_CRON ?? '15 3 * * *',
       weeklyDigest: env.DIGEST_CRON ?? '0 9 * * 1',
+      /** Minute-resolution sweep — the reminder is only as punctual as this. */
+      flowReminder: env.REMINDER_CRON ?? '* * * * *',
     },
   }
 }

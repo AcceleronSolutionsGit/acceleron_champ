@@ -19,6 +19,7 @@ import { getDb } from '../db/knex'
 import { nowIso } from '../db/time'
 import { Behaviour, Employee, Recognition } from '../types'
 import { normalizeLang, t } from './conversation/i18n'
+import { maySendProactive } from './outbound'
 import { getWhatsAppProvider } from './whatsapp/provider'
 import { appendSimulatorEntry } from './whatsapp/simulatorStore'
 
@@ -40,6 +41,18 @@ export async function notifyRecipient(recognition: Recognition): Promise<void> {
   if (!giver || !behaviour) return
 
   const lang = normalizeLang(recipient.language)
+
+  // ── Outbound policy gate ────────────────────────────────────────────────
+  // This is the message that used to land at 23:40 because someone on another
+  // shift recognised you. Under the default policy it is delivered only if the
+  // recipient is themself mid-conversation with the bot; otherwise it is
+  // skipped. The recognition is already on the feed and in their count either
+  // way — the notification is a courtesy, not the record.
+  //
+  // Checked BEFORE the simulator append so the dev transcript shows exactly
+  // what production would send, which is the only way the policy is testable.
+  const gate = await maySendProactive(recipient.mobile, 'recognition-notification')
+  if (!gate.allowed) return
 
   // ── Simulator store (always, when enabled) ──────────────────────────────
   // Populate the in-memory transcript so the /simulator page shows the

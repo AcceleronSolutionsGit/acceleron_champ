@@ -12,6 +12,7 @@ import { IST } from './db/time'
 import { runDirectorySync } from './modules/sync/darwinbox'
 import { nightlySweep } from './modules/flags/flagScan'
 import { sendWeeklyDigest } from './modules/digest/digest'
+import { sendInactivityReminders } from './modules/conversation/reminder'
 
 let started = false
 
@@ -26,7 +27,17 @@ function summarize(result: unknown): string {
   return ` — ${String(result)}`
 }
 
-function scheduleJob(name: string, expression: string, run: () => Promise<unknown>): void {
+/**
+ * `quietWhenIdle` suppresses the per-run completion line for jobs that run at
+ * minute resolution. Without it the flow-reminder sweep writes 1,440 identical
+ * "completed in 0.0s" lines a day and buries everything else in the log.
+ */
+function scheduleJob(
+  name: string,
+  expression: string,
+  run: () => Promise<unknown>,
+  quietWhenIdle: (result: unknown) => boolean = () => false,
+): void {
   if (!validate(expression)) {
     // A bad env override must not crash boot — log loudly and skip the job.
     console.error(`[scheduler] invalid cron expression for ${name}: "${expression}" — job NOT scheduled`)
@@ -38,6 +49,7 @@ function scheduleJob(name: string, expression: string, run: () => Promise<unknow
       const startedAt = Date.now()
       try {
         const result = await run()
+        if (quietWhenIdle(result)) return
         const secs = ((Date.now() - startedAt) / 1000).toFixed(1)
         console.log(`[scheduler] ${name} completed in ${secs}s${summarize(result)}`)
       } catch (err) {
@@ -59,4 +71,17 @@ export function startScheduler(): void {
   scheduleJob('darwinbox-sync', config.cron.darwinboxSync, runDirectorySync)
   scheduleJob('flag-scan', config.cron.flagScan, nightlySweep)
   scheduleJob('weekly-digest', config.cron.weeklyDigest, sendWeeklyDigest)
+  // Minute-resolution sweep for the single mid-flow inactivity reminder. It is
+  // a cheap indexed range query over conversation_state, which only ever holds
+  // in-flight conversations, so running it every minute costs nothing.
+  if (config.conversation.remindersEnabled) {
+    scheduleJob(
+      'flow-reminder',
+      config.cron.flowReminder,
+      sendInactivityReminders,
+      (r) => (r as { sent?: number } | undefined)?.sent === 0,
+    )
+  } else {
+    console.log('[scheduler] flow-reminder disabled (REMINDERS_ENABLED=false)')
+  }
 }

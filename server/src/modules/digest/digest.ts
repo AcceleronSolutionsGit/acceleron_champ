@@ -8,6 +8,7 @@ import { config } from '../../config'
 import { getDb } from '../../db/knex'
 import { daysAgoIso, formatIst, nowIso } from '../../db/time'
 import { getSettings } from '../settings'
+import { withOpenSession } from '../outbound'
 import { getWhatsAppProvider } from '../whatsapp/provider'
 import { Employee } from '../../types'
 
@@ -118,10 +119,32 @@ export async function sendWeeklyDigest(): Promise<void> {
     if (settings.digestAudience === 'leadership') {
       audienceQuery.whereIn('level_grade', ['L4', 'L5'])
     }
-    const audience = (await audienceQuery.select('id', 'mobile', 'name')) as Pick<
+    let audience = (await audienceQuery.select('id', 'mobile', 'name')) as Pick<
       Employee,
       'id' | 'mobile' | 'name'
     >[]
+
+    // ── Outbound policy ────────────────────────────────────────────────────
+    // A broadcast is the most intrusive thing this system does: one scheduled
+    // moment, every phone in the directory. Under the default policy it is
+    // narrowed to people who are currently in a conversation they started, so
+    // the digest can only ever arrive as part of an exchange already underway.
+    // Set PROACTIVE_REQUIRES_SESSION=false to broadcast to everyone again.
+    if (config.outbound.proactiveRequiresSession) {
+      const reachable = await withOpenSession(audience.map((e) => e.mobile))
+      const skipped = audience.length - reachable.size
+      audience = audience.filter((e) => reachable.has(e.mobile))
+      if (skipped > 0) {
+        console.log(
+          `[digest] ${skipped} recipient(s) skipped — no inbound message in the last ` +
+            `${config.outbound.sessionWindowHours}h (PROACTIVE_REQUIRES_SESSION)`,
+        )
+      }
+      if (audience.length === 0) {
+        console.log('[digest] nobody is inside their session window — nothing sent')
+        return
+      }
+    }
 
     const provider = getWhatsAppProvider()
     const params = [
