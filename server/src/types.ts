@@ -65,13 +65,15 @@ export interface Flag {
 
 // ── Quarterly self-nomination ─────────────────────────────────────────────────
 
-export type NominationStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn'
+export type NominationStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'removed'
 
 /** Raw `nominations` row. Timestamps are ISO-8601 UTC strings. */
 export interface Nomination {
   id: number
   employee_id: number
   submitted_manager_id: number | null
+  /** CHAMP behaviour the achievement is claimed against. Null on pre-007 rows. */
+  behaviour_id: number | null
   quarter: string // 'FY2026-Q2'
   quarter_start: string
   quarter_end: string
@@ -82,6 +84,9 @@ export interface Nomination {
   decided_by_email: string | null
   decided_at: string | null
   decision_note: string | null
+  removal_reason: string | null
+  removed_by_email: string | null
+  removed_at: string | null
   created_at: string
   updated_at: string
 }
@@ -90,6 +95,8 @@ export interface Nomination {
 export interface NominationItem {
   id: number
   quarter: { code: string; label: string; months: string }
+  /** Null only for rows filed before behaviours were required. */
+  behaviour: { id: number; name: string; colour: string } | null
   title: string
   evidence: string
   status: NominationStatus
@@ -103,6 +110,8 @@ export interface NominationItem {
     at: string | null
     note: string | null
   } | null
+  /** Set once the committee strikes it from the pool. Shown to the employee. */
+  removal: { by: string | null; at: string | null; reason: string | null } | null
   createdAt: string
   updatedAt: string
   /** True when the signed-in employee may still edit or withdraw this. */
@@ -122,6 +131,11 @@ export type NominationErrorCode =
   | 'ALREADY_DECIDED'
   | 'NOT_YOUR_REPORT'
   | 'NOT_FOUND'
+  | 'BEHAVIOUR_REQUIRED'
+  | 'UNKNOWN_BEHAVIOUR'
+  | 'ALREADY_REMOVED'
+  | 'REMOVED'
+  | 'REASON_REQUIRED'
 
 export type Role = 'employee' | 'committee' | 'admin'
 

@@ -18,6 +18,7 @@ import { Knex } from 'knex'
 import { getDb } from '../../db/knex'
 import { nowIso } from '../../db/time'
 import {
+  Behaviour,
   Employee,
   Nomination,
   NominationErrorCode,
@@ -74,6 +75,9 @@ interface JoinedRow extends Nomination {
   mgr_shift: string | null
   /** Name of whoever decided, so the UI never has to show a raw email. */
   decider_name: string | null
+  beh_id: number | null
+  beh_name: string | null
+  beh_colour: string | null
 }
 
 /**
@@ -89,6 +93,9 @@ function baseQuery(db: Knex) {
     // "Note from meera.joshi@acceleronsolutions.io", which is their manager
     // rendered as a database column.
     .leftJoin('employees as d', 'd.id', 'n.decided_by_employee_id')
+    // Left, not inner: a nomination filed before behaviours were required, or
+    // one whose behaviour an admin later deleted outright, must still appear.
+    .leftJoin('behaviours as b', 'b.id', 'n.behaviour_id')
     .select(
       'n.*',
       'e.name as emp_name',
@@ -103,6 +110,9 @@ function baseQuery(db: Knex) {
       'm.site as mgr_site',
       'm.shift as mgr_shift',
       'd.name as decider_name',
+      'b.id as beh_id',
+      'b.name as beh_name',
+      'b.colour as beh_colour',
     )
 }
 
@@ -110,6 +120,9 @@ function toItem(row: JoinedRow, opts: { editable?: boolean } = {}): NominationIt
   return {
     id: row.id,
     quarter: quarterSummary(row.quarter),
+    behaviour: row.beh_id
+      ? { id: row.beh_id, name: row.beh_name ?? '', colour: row.beh_colour ?? '#64748b' }
+      : null,
     title: row.title,
     evidence: row.evidence_text,
     status: row.status,
@@ -139,13 +152,21 @@ function toItem(row: JoinedRow, opts: { editable?: boolean } = {}): NominationIt
           note: row.decision_note,
         }
       : null,
+    removal: row.removed_at
+      ? { by: row.removed_by_email, at: row.removed_at, reason: row.removal_reason }
+      : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     ...(opts.editable === undefined ? {} : { editable: opts.editable }),
   }
 }
 
-/** Pending and rejected are still the employee's to change; approved is not. */
+/**
+ * Pending, rejected and withdrawn are still the employee's to change. Approved
+ * is locked because the committee is already reading it; removed is locked
+ * because the committee has struck it, and re-filing the same quarter would
+ * undo their decision through the side door.
+ */
 function isEditable(status: NominationStatus): boolean {
   return status === 'pending' || status === 'rejected' || status === 'withdrawn'
 }
@@ -190,6 +211,8 @@ export async function getMyNominations(employeeId: number): Promise<MyNomination
 export interface SubmitInput {
   employeeId: number
   quarterCode: string
+  /** Which CHAMP behaviour the achievement is claimed against. */
+  behaviourId: number
   title: string
   evidenceText: string
 }
@@ -249,6 +272,21 @@ export async function submitNomination(input: SubmitInput): Promise<NominationRe
     )
   }
 
+  // The behaviour is validated against the LIVE table, not a hardcoded list, so
+  // an admin retiring one (FR-23) stops it being claimed from the next
+  // submission onward without a deploy.
+  const behaviour = Number.isInteger(input.behaviourId)
+    ? ((await db('behaviours').where({ id: input.behaviourId, active: 1 }).first()) as
+        | Behaviour
+        | undefined)
+    : undefined
+  if (!behaviour) {
+    return fail(
+      'UNKNOWN_BEHAVIOUR',
+      'Choose which CHAMP behaviour this is an example of — that is how the committee compares nominations across the business.',
+    )
+  }
+
   const existing = (await db('nominations')
     .where({ employee_id: input.employeeId, quarter: quarter.code })
     .first()) as Nomination | undefined
@@ -259,6 +297,14 @@ export async function submitNomination(input: SubmitInput): Promise<NominationRe
       `Your ${quarter.label} nomination has already been approved and can no longer be edited.`,
     )
   }
+  if (existing && existing.status === 'removed') {
+    // Terminal by design. Letting someone re-file into a quarter the committee
+    // has already struck would make removal decorative.
+    return fail(
+      'REMOVED',
+      `Your ${quarter.label} nomination was removed by the R&R committee, so this quarter is closed to you. The reason is shown on your nomination page — please speak to HR if you think it was a mistake.`,
+    )
+  }
 
   const now = nowIso()
   if (existing) {
@@ -267,6 +313,7 @@ export async function submitNomination(input: SubmitInput): Promise<NominationRe
       .update({
         title,
         evidence_text: evidence,
+        behaviour_id: behaviour.id,
         submitted_manager_id: employee.manager_id,
         status: 'pending',
         // Re-submission is a clean slate for the manager.
@@ -280,6 +327,7 @@ export async function submitNomination(input: SubmitInput): Promise<NominationRe
     await db('nominations').insert({
       employee_id: input.employeeId,
       submitted_manager_id: employee.manager_id,
+      behaviour_id: behaviour.id,
       quarter: quarter.code,
       quarter_start: quarter.startIso,
       quarter_end: quarter.endIso,
@@ -310,6 +358,9 @@ export async function withdrawNomination(
   if (!existing) return fail('NOT_FOUND', 'That nomination does not exist.')
   if (existing.status === 'approved') {
     return fail('ALREADY_APPROVED', 'An approved nomination cannot be withdrawn.')
+  }
+  if (existing.status === 'removed') {
+    return fail('ALREADY_REMOVED', 'This nomination was removed by the R&R committee.')
   }
 
   await db('nominations').where({ id: nominationId }).update({ status: 'withdrawn', updated_at: nowIso() })
@@ -396,7 +447,9 @@ export async function decideNomination(input: DecideInput): Promise<NominationRe
       'ALREADY_DECIDED',
       row.status === 'withdrawn'
         ? 'This nomination was withdrawn by the employee.'
-        : `This nomination has already been ${row.status}.`,
+        : row.status === 'removed'
+          ? 'This nomination was removed by the R&R committee.'
+          : `This nomination has already been ${row.status}.`,
       { status: row.status },
     )
   }
@@ -419,9 +472,66 @@ export async function decideNomination(input: DecideInput): Promise<NominationRe
 
 // ── committee side ────────────────────────────────────────────────────────────
 
+/** Shortest removal reason that is actually a reason rather than a shrug. */
+export const REMOVAL_REASON_MIN_LENGTH = 15
+
+export interface RemoveInput {
+  nominationId: number
+  actorEmail: string
+  reason: string
+}
+
+/**
+ * Strike a nomination from the pool, with the reason on the record.
+ *
+ * Deliberately NOT a delete. The row stays, the evidence stays readable, and
+ * the employee is told it was removed and why — a nomination that silently
+ * vanishes teaches nobody anything and invites them to file it again. It is
+ * also why the reason is mandatory: this is the only text the employee ever
+ * gets back from the committee.
+ *
+ * Terminal for that quarter. There is no restore and no re-filing; a removal
+ * made in error is corrected by HR, not by the person it was made against.
+ *
+ * Authorization is the ROUTE's job (committee-or-admin) rather than this
+ * function's: unlike manager approval, nothing about who may remove is
+ * derivable from the data, so it stays a plain role check at the edge.
+ */
+export async function removeNomination(input: RemoveInput): Promise<NominationResult<NominationItem>> {
+  const db = getDb()
+  const reason = input.reason.trim()
+  if (reason.length < REMOVAL_REASON_MIN_LENGTH) {
+    return fail(
+      'REASON_REQUIRED',
+      `Please give a reason of at least ${REMOVAL_REASON_MIN_LENGTH} characters — the employee sees exactly this text.`,
+      { min: REMOVAL_REASON_MIN_LENGTH },
+    )
+  }
+
+  const row = (await baseQuery(db).where('n.id', input.nominationId).first()) as JoinedRow | undefined
+  if (!row) return fail('NOT_FOUND', 'That nomination does not exist.')
+  if (row.status === 'removed') {
+    return fail('ALREADY_REMOVED', 'This nomination has already been removed.')
+  }
+
+  const now = nowIso()
+  await db('nominations').where({ id: input.nominationId }).update({
+    status: 'removed',
+    removal_reason: reason,
+    removed_by_email: input.actorEmail,
+    removed_at: now,
+    updated_at: now,
+  })
+
+  const updated = (await baseQuery(db).where('n.id', input.nominationId).first()) as JoinedRow
+  return { ok: true, value: toItem(updated) }
+}
+
+
 export interface CommitteeFilters {
   quarter?: string
   status?: NominationStatus
+  behaviourId?: number
   function?: string
   site?: string
   q?: string
@@ -440,6 +550,7 @@ export interface CommitteeView {
 function applyFilters(builder: Knex.QueryBuilder, f: CommitteeFilters): Knex.QueryBuilder {
   if (f.quarter) builder.where('n.quarter', f.quarter)
   if (f.status) builder.where('n.status', f.status)
+  if (f.behaviourId) builder.where('n.behaviour_id', f.behaviourId)
   if (f.function) builder.where('e.function', f.function)
   if (f.site) builder.where('e.site', f.site)
   if (f.q) {
@@ -484,6 +595,7 @@ export async function listForCommittee(filters: CommitteeFilters): Promise<Commi
     approved: 0,
     rejected: 0,
     withdrawn: 0,
+    removed: 0,
   }
   for (const r of countRows) counts[r.status] = Number(r.c)
 

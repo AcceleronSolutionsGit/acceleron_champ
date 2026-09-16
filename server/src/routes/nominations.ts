@@ -29,6 +29,8 @@ import {
   listForManager,
   NominationResult,
   managerNavState,
+  removeNomination,
+  REMOVAL_REASON_MIN_LENGTH,
   submitNomination,
   withdrawNomination,
 } from '../modules/nominations/nominations'
@@ -65,6 +67,11 @@ const STATUS_BY_CODE: Record<string, number> = {
   UNKNOWN_QUARTER: 400,
   EVIDENCE_TOO_SHORT: 400,
   EVIDENCE_TOO_LONG: 400,
+  BEHAVIOUR_REQUIRED: 400,
+  UNKNOWN_BEHAVIOUR: 400,
+  REASON_REQUIRED: 400,
+  ALREADY_REMOVED: 409,
+  REMOVED: 409,
   NOT_FOUND: 404,
 }
 
@@ -86,7 +93,7 @@ function requireEmployeeId(user: SessionUser): number {
   return user.employeeId
 }
 
-const statusEnum = z.enum(['pending', 'approved', 'rejected', 'withdrawn'])
+const statusEnum = z.enum(['pending', 'approved', 'rejected', 'withdrawn', 'removed'])
 
 // ── employee ──────────────────────────────────────────────────────────────────
 
@@ -116,6 +123,10 @@ router.get(
 
 const submitBody = z.object({
   quarter: z.string().trim().min(1, 'Choose a quarter'),
+  behaviourId: z.coerce
+    .number({ required_error: 'Choose a CHAMP behaviour' })
+    .int()
+    .positive('Choose a CHAMP behaviour'),
   title: z
     .string({ required_error: 'Give your nomination a short headline' })
     .trim()
@@ -135,12 +146,14 @@ router.post(
       await submitNomination({
         employeeId,
         quarterCode: body.quarter,
+        behaviourId: body.behaviourId,
         title: body.title,
         evidenceText: body.evidence,
       }),
     )
     await logAudit(req.user!.email, 'submit_nomination', 'nomination', item.id, {
       quarter: item.quarter.code,
+      behaviour: item.behaviour?.name,
     })
     res.json({ ok: true, item })
   }),
@@ -227,6 +240,7 @@ router.post(
 const committeeQuery = z.object({
   quarter: z.string().trim().optional(),
   status: statusEnum.optional(),
+  behaviourId: z.coerce.number().int().positive().optional(),
   function: z.string().trim().optional(),
   site: z.string().trim().optional(),
   q: z.string().trim().max(120).optional(),
@@ -250,6 +264,46 @@ router.get(
   }),
 )
 
+const removeBody = z.object({
+  reason: z
+    .string({ required_error: 'A reason is required' })
+    .trim()
+    .min(
+      REMOVAL_REASON_MIN_LENGTH,
+      `Give a reason of at least ${REMOVAL_REASON_MIN_LENGTH} characters — the employee sees it`,
+    )
+    .max(1000, 'Keep the reason under 1000 characters'),
+})
+
+/**
+ * Remove a nomination from the pool. Committee-or-admin, reason mandatory.
+ *
+ * This is the one action in the feature that is gated on a ROLE rather than on
+ * the reporting line: policing the pool is the committee's job and has nothing
+ * to do with who reports to whom.
+ */
+router.post(
+  '/:id/remove',
+  requireRole('committee'),
+  asyncHandler(async (req, res) => {
+    const id = parse(z.coerce.number().int().positive(), req.params.id)
+    const { reason } = parse(removeBody, req.body)
+    const item = unwrap(
+      await removeNomination({ nominationId: id, actorEmail: req.user!.email, reason }),
+    )
+    await logAudit(req.user!.email, 'remove_nomination', 'nomination', id, {
+      quarter: item.quarter.code,
+      employee: item.employee.name,
+      behaviour: item.behaviour?.name,
+      // The previous status matters: striking an approved nomination overrides
+      // a manager's judgement, striking a pending one does not.
+      previousStatus: item.decision ? 'decided' : 'pending',
+      reason,
+    })
+    res.json({ ok: true, item })
+  }),
+)
+
 // ── CSV export ────────────────────────────────────────────────────────────────
 
 /** RFC-4180 quoting — evidence paragraphs contain commas, quotes and newlines. */
@@ -261,6 +315,7 @@ function csvCell(value: unknown): string {
 function toCsv(items: NominationItem[]): string {
   const header = [
     'Quarter',
+    'CHAMP behaviour',
     'Employee code',
     'Employee',
     'Function',
@@ -273,10 +328,14 @@ function toCsv(items: NominationItem[]): string {
     'Decided by',
     'Decided at',
     'Decision note',
+    'Removed by',
+    'Removed at',
+    'Removal reason',
     'Submitted at',
   ]
   const rows = items.map((n) => [
     n.quarter.label,
+    n.behaviour?.name ?? '',
     n.employee.employeeCode ?? '',
     n.employee.name,
     n.employee.function,
@@ -289,6 +348,9 @@ function toCsv(items: NominationItem[]): string {
     n.decision?.by ?? '',
     n.decision?.at ?? '',
     n.decision?.note ?? '',
+    n.removal?.by ?? '',
+    n.removal?.at ?? '',
+    n.removal?.reason ?? '',
     n.createdAt,
   ])
   // A BOM so Excel on Windows opens the Hindi/Bengali names as UTF-8 rather

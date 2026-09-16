@@ -304,7 +304,12 @@ export const api = {
   // quarterly self-nomination
   nominationQuarters: () => request<QuarterOptions>('GET', '/api/nominations/quarters'),
   myNominations: () => request<MyNominationsResponse>('GET', '/api/nominations/mine'),
-  submitNomination: (payload: { quarter: string; title: string; evidence: string }) =>
+  submitNomination: (payload: {
+    quarter: string
+    behaviourId: number
+    title: string
+    evidence: string
+  }) =>
     request<{ ok: boolean; item: NominationItem }>('POST', '/api/nominations', payload),
   withdrawNomination: (id: number) =>
     request<{ ok: boolean; item: NominationItem }>('POST', `/api/nominations/${id}/withdraw`),
@@ -324,6 +329,9 @@ export const api = {
   // committee-wide view
   allNominations: (params: QueryParams) =>
     request<NominationsPage>('GET', '/api/nominations/all', undefined, params),
+  /** Strike a nomination from the pool. Committee-or-admin; reason is mandatory. */
+  removeNomination: (id: number, reason: string) =>
+    request<{ ok: boolean; item: NominationItem }>('POST', `/api/nominations/${id}/remove`, { reason }),
 
   // board (kiosk — no auth; optional ?token=)
   boardFeed: async (params: QueryParams) =>

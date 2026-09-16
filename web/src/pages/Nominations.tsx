@@ -36,6 +36,11 @@ const STATUS_COPY: Record<NominationStatus, { label: string; tone: string; hint:
     tone: 'withdrawn',
     hint: 'You pulled this back. Edit and submit whenever you are ready.',
   },
+  removed: {
+    label: 'Removed',
+    tone: 'removed',
+    hint: 'The R&R committee removed this from the pool. The reason is below. This quarter is now closed to you — speak to HR if you think that is wrong.',
+  },
 }
 
 /**
@@ -68,8 +73,12 @@ export function NominationStatusBadge({
 export default function Nominations(): React.ReactElement {
   const state = useApi(() => api.myNominations(), [])
   const data = state.data
+  // The active CHAMP behaviours, from the same endpoint the feed filters use —
+  // an admin retiring one (FR-23) removes it from this picker with no deploy.
+  const behaviours = useApi(() => api.feedFilters(), [])
 
   const [quarterCode, setQuarterCode] = useState('')
+  const [behaviourId, setBehaviourId] = useState<number | null>(null)
   const [title, setTitle] = useState('')
   const [evidence, setEvidence] = useState('')
   const [busy, setBusy] = useState(false)
@@ -93,6 +102,7 @@ export default function Nominations(): React.ReactElement {
     if (dirty) return
     setTitle(existing?.title ?? '')
     setEvidence(existing?.evidence ?? '')
+    setBehaviourId(existing?.behaviour?.id ?? null)
   }, [existing, dirty])
 
   if (state.loading && !data) return <Loading label="Loading your nominations…" />
@@ -101,12 +111,19 @@ export default function Nominations(): React.ReactElement {
 
   const { limits, manager, quartersOpen } = data
   const selectedQuarter = quartersOpen.find((q) => q.code === quarterCode)
-  const locked = existing?.status === 'approved'
+  const locked = existing?.status === 'approved' || existing?.status === 'removed'
   const evidenceLength = evidence.trim().length
   const tooShort = evidenceLength < limits.minLength
   const tooLong = evidenceLength > limits.maxLength
   const canSubmit =
-    limits.enabled && !!manager && !locked && !!quarterCode && title.trim().length >= 8 && !tooShort && !tooLong
+    limits.enabled &&
+    !!manager &&
+    !locked &&
+    !!quarterCode &&
+    behaviourId !== null &&
+    title.trim().length >= 8 &&
+    !tooShort &&
+    !tooLong
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -114,7 +131,12 @@ export default function Nominations(): React.ReactElement {
     setError(null)
     setSaved(null)
     try {
-      const res = await api.submitNomination({ quarter: quarterCode, title, evidence })
+      const res = await api.submitNomination({
+        quarter: quarterCode,
+        behaviourId: behaviourId!,
+        title,
+        evidence,
+      })
       setSaved(`${res.item.quarter.label} sent to ${res.item.manager?.name ?? 'your manager'} for approval.`)
       setDirty(false)
       state.reload()
@@ -215,12 +237,62 @@ export default function Nominations(): React.ReactElement {
                 )}
               </div>
 
+              {/* Removal is shown FIRST and in full. A nomination that quietly
+                  disappears teaches nobody anything and invites a re-file. */}
+              {existing?.removal && (
+                <div className="nom-decision-note nom-decision-removed">
+                  <strong>
+                    Removed by the R&amp;R committee
+                    {existing.removal.at ? ` · ${formatIstDateTime(existing.removal.at)}` : ''}
+                  </strong>
+                  <p>{existing.removal.reason}</p>
+                </div>
+              )}
+
               {existing?.decision?.note && (
                 <div className={`nom-decision-note nom-decision-${existing.status}`}>
                   <strong>Note from {existing.decision.by ?? 'your manager'}</strong>
                   <p>{existing.decision.note}</p>
                 </div>
               )}
+
+              {/* The behaviour picker sits above the headline because choosing
+                  it changes what you write: the evidence has to be evidence OF
+                  that behaviour, not a general account of a good quarter. */}
+              <div style={{ marginTop: 16 }}>
+                <Field label="Which CHAMP behaviour is this an example of?">
+                  <div className="nom-behaviours" role="radiogroup" aria-label="CHAMP behaviour">
+                    {behaviours.data?.behaviours.map((b) => (
+                      <button
+                        key={b.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={behaviourId === b.id}
+                        disabled={locked}
+                        className={`nom-behaviour-option${behaviourId === b.id ? ' selected' : ''}`}
+                        style={
+                          behaviourId === b.id
+                            ? { borderColor: b.colour, boxShadow: `inset 0 0 0 1px ${b.colour}` }
+                            : undefined
+                        }
+                        onClick={() => {
+                          setBehaviourId(b.id)
+                          setDirty(true)
+                          setSaved(null)
+                        }}
+                      >
+                        <span className="nom-behaviour-dot" style={{ background: b.colour }} aria-hidden />
+                        {b.name}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+                {behaviours.data && behaviours.data.behaviours.length === 0 && (
+                  <div className="feed-meta">
+                    No CHAMP behaviours are active — an admin needs to enable at least one.
+                  </div>
+                )}
+              </div>
 
               <div style={{ marginTop: 14 }}>
                 <Field label="Headline — what did you do, in one line?">
@@ -281,7 +353,11 @@ export default function Nominations(): React.ReactElement {
                     Goes to <strong>{manager.name}</strong> · {manager.function}
                   </span>
                 )}
-                {existing && existing.status !== 'approved' && existing.status !== 'withdrawn' && (
+                {/* Only a nomination actually awaiting a decision can be pulled
+                    back. A rejected one has nothing left to withdraw from, and
+                    approved and removed are both terminal — the server refuses
+                    all three, so showing the button would just be a trap. */}
+                {existing?.status === 'pending' && (
                   <Button variant="ghost" busy={busy} onClick={() => void withdraw(existing)}>
                     Withdraw
                   </Button>
@@ -313,6 +389,10 @@ export default function Nominations(): React.ReactElement {
                 <strong>Stay inside the quarter.</strong> Work from earlier quarters belongs to those
                 quarters, not this one.
               </li>
+              <li>
+                <strong>Match the behaviour you picked.</strong> If you claimed INNOVATION, the evidence
+                has to be about doing something new — not about working hard on something familiar.
+              </li>
             </ul>
           </Card>
 
@@ -340,7 +420,10 @@ export default function Nominations(): React.ReactElement {
                     }}
                   >
                     <div className="nom-history-main">
-                      <div className="nom-history-quarter">{n.quarter.label}</div>
+                      <div className="nom-history-quarter">
+                        {n.quarter.label}
+                        {n.behaviour && <> · {n.behaviour.name}</>}
+                      </div>
                       <div className="nom-history-title">{n.title}</div>
                       <div className="feed-meta">Updated {formatIstDateTime(n.updatedAt)}</div>
                     </div>

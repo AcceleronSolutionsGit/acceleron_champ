@@ -99,7 +99,21 @@ export async function requestOtp(emailRaw: string): Promise<{ devCode?: string }
     consumed_at: null,
     created_at: nowIso(),
   })
-  await sendOtpEmail(email, code)
+  try {
+    await sendOtpEmail(email, code)
+  } catch (err) {
+    // The code is already stored, so a send failure would otherwise leave the
+    // user on the "enter your code" screen with no code coming. Fail loudly
+    // here instead, and keep the real cause in the server log rather than in
+    // the response — it names the mailbox and the relay.
+    console.error('[otp] could not send the sign-in code:', err)
+    throw apiError(
+      502,
+      'EMAIL_SEND_FAILED',
+      'We could not send your sign-in code just now. Please try again in a minute, and tell IT if it keeps happening.',
+      true, // written for the user; the real cause stays in the log above
+    )
+  }
 
   return config.email.provider === 'console' ? { devCode: code } : {}
 }

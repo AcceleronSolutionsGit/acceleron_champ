@@ -15,7 +15,7 @@ import { api, ApiError } from '../api'
 import { useApi } from '../hooks'
 import type { NominationItem, NominationStatus } from '../types'
 import { formatIstDateTime, timeAgo } from '../format'
-import { Button, Card, EmptyState, ErrorState, Field, Loading, Modal } from '../components/ui'
+import { BehaviourChip, Button, Card, EmptyState, ErrorState, Field, Loading, Modal } from '../components/ui'
 import { NominationStatusBadge } from './Nominations'
 
 type Filter = 'pending' | 'approved' | 'rejected' | 'all'
@@ -132,6 +132,11 @@ function NominationCard({
         </div>
         <div className="nom-card-meta">
           <span className="chip">{item.quarter.label}</span>
+          {/* The behaviour is what the manager is being asked to confirm, so it
+              sits next to the status rather than buried in the evidence. */}
+          {item.behaviour && (
+            <BehaviourChip name={item.behaviour.name} colour={item.behaviour.colour} />
+          )}
           <NominationStatusBadge status={item.status} audience="manager" />
         </div>
       </div>
@@ -160,14 +165,28 @@ function NominationCard({
             </Button>
           </div>
         ) : (
-          item.decision && (
+          item.status === 'removed' ? (
             <span className="feed-meta">
-              {item.status === 'approved' ? 'Approved' : 'Declined'} by {item.decision.by} ·{' '}
-              {item.decision.at ? formatIstDateTime(item.decision.at) : ''}
+              Removed by the committee
+              {item.removal?.at ? ` · ${formatIstDateTime(item.removal.at)}` : ''}
             </span>
+          ) : (
+            item.decision && (
+              <span className="feed-meta">
+                {item.status === 'approved' ? 'Approved' : 'Declined'} by {item.decision.by} ·{' '}
+                {item.decision.at ? formatIstDateTime(item.decision.at) : ''}
+              </span>
+            )
           )
         )}
       </div>
+
+      {item.removal && (
+        <div className="nom-decision-note nom-decision-removed">
+          <strong>Removed by the R&amp;R committee — {item.removal.by}</strong>
+          <p>{item.removal.reason}</p>
+        </div>
+      )}
 
       {item.decision?.note && (
         <div className={`nom-decision-note nom-decision-${item.status}`}>

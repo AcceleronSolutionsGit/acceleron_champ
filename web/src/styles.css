@@ -2777,3 +2777,49 @@ h3 { font-size: 15px; font-weight: 600; }
 
 /* Keep a status badge on one line; the hint beside it can wrap instead. */
 .badge[class*='badge-nom-'] { white-space: nowrap; }
+
+/* Removed nominations: struck from the pool by the committee, with the reason
+   on the record. Grey rather than red — it is an administrative fact, not a
+   judgement on the person the way a decline is. */
+.badge-nom-removed {
+  background: var(--navy-100);
+  color: var(--navy-700);
+  border: 1px solid var(--navy-200);
+  text-decoration: line-through;
+}
+.nom-decision-removed {
+  border-left-color: var(--navy-600);
+  background: var(--navy-50);
+}
+
+/* CHAMP behaviour picker on the nomination form. A radio group of chips rather
+   than a <select>: six options with colours the employee already recognises
+   from the feed, and all of them visible while they write. */
+.nom-behaviours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.nom-behaviour-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.nom-behaviour-option:hover:not(:disabled) { background: var(--green-tint); }
+.nom-behaviour-option.selected { background: var(--green-tint); }
+.nom-behaviour-option:disabled { opacity: 0.55; cursor: not-allowed; }
+.nom-behaviour-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}

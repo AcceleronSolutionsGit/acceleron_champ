@@ -1,0 +1,345 @@
+ACCELERON CHAMP — USER GUIDE MAILS
+Three separate mails. Send each to its own audience.
+
+Before sending, replace:
+  [CONSOLE URL]      the web console address
+  [WHATSAPP NUMBER]  the CHAMP WhatsApp number
+  [HR CONTACT]       who people should write to for directory problems
+  [R&R CONTACT]      who chases the committee
+
+
+═══════════════════════════════════════════════════════════════════════
+MAIL 1 — ALL EMPLOYEES
+═══════════════════════════════════════════════════════════════════════
+
+Subject: CHAMP is live — recognise a colleague, and put your own work forward
+
+Hello everyone,
+
+CHAMP is now running. It does two things: it lets you recognise a colleague
+the moment you see them do something good, and once a quarter it lets you put
+your own best piece of work forward for the R&R committee.
+
+Everything below takes a couple of minutes to learn. Save this mail.
+
+
+── 1. RECOGNISING A COLLEAGUE (WHATSAPP) ──────────────────────────────
+
+Save [WHATSAPP NUMBER] as "Acceleron CHAMP" and send it "hi".
+
+The first time, you will be asked to agree to a short data-protection notice
+under the DPDP Act, 2023. Tap "I Agree" once and you will not see it again.
+
+Then:
+
+  1. Tap "Give recognition".
+  2. Type the person's name, or their employee code. If several people match,
+     you get a list to pick from. If too many match, type more of the name.
+  3. Pick the CHAMP behaviour they showed: IMPACT, CARING, ENTREPRENEURSHIP,
+     CUSTOMER CENTRICITY, INTEGRITY or INNOVATION.
+  4. In one line, say what they actually did.
+
+That is it. They get told, and it appears on the CHAMP feed and the plant
+board.
+
+Three rules worth knowing before they surprise you:
+
+  • Be specific. "Great job" and "well done" are rejected on purpose. Write at
+    least a short sentence about what the person did. The bot will ask you to
+    try again if it is too brief.
+  • Two per colleague per month. You can recognise the same person twice in a
+    calendar month. After that the bot will tell you the cap is reached.
+  • You cannot recognise yourself. That is what the quarterly nomination
+    below is for.
+
+Other things you can type at any point:
+
+  "my count"   your own running total, received and given
+  "cancel"     abandon whatever you were in the middle of
+  "hi"         back to the menu
+
+
+── 2. THE WEB CONSOLE ─────────────────────────────────────────────────
+
+Go to [CONSOLE URL] and sign in with your Acceleron work email. You will get
+a six-digit code by mail. There is no password to remember or forget.
+
+Once you are in:
+
+  Live Feed     everything being recognised across the business
+  Directory     search anyone, see what they have given and received
+  My Nomination your quarterly nomination (below)
+
+The red "Give Recognition" button at the top right does the same thing as the
+WhatsApp flow, if you happen to be at a desk.
+
+
+── 3. YOUR QUARTERLY NOMINATION ───────────────────────────────────────
+
+Once a quarter you can put forward one piece of your own work. Your reporting
+manager approves it, and approved nominations go to the R&R committee.
+
+Go to "My Nomination" and:
+
+  1. Check the quarter. Quarters follow our financial year, so Q1 is
+     April–June, Q2 is July–September, and so on. The current quarter is
+     always open, and the one that just ended stays open for another 30 days
+     so you are not writing it up on the last day.
+  2. Pick the CHAMP behaviour your work is an example of.
+  3. Write a one-line headline. Something like "Cut Line 3 changeover from 42
+     to 18 minutes".
+  4. Write the evidence, at least 200 characters.
+
+One nomination per person per quarter. Editing replaces what you sent, so you
+can keep refining it right up until your manager decides.
+
+What makes the difference between a nomination that lands and one that does
+not:
+
+  • Name the change, not the effort. "Reduced rejections on Line 3 from 4.2%
+    to 1.1%" beats "worked very hard on quality".
+  • Give one number. Time saved, defects avoided, cost, tickets closed,
+    uptime, whatever your work is actually measured by.
+  • Say who can confirm it. A colleague, a report, a ticket number. This is
+    the part that turns a claim into evidence.
+  • Match the behaviour you picked. If you claimed INNOVATION, the evidence
+    has to be about doing something new, not about working hard on something
+    familiar.
+  • Stay inside the quarter. Work from earlier quarters belongs to those
+    quarters.
+
+Your manager is signing their name to this, so write something they can
+check.
+
+After you send it:
+
+  Awaiting your manager   they can see it, you can still edit it
+  Approved                locked, and with the R&R committee
+  Not approved            read their note, rework it, send it again
+  Withdrawn               you pulled it back; edit and resend any time
+
+If your manager does not approve it, that is not the end. You can rework the
+evidence and resubmit, and it goes straight back to them.
+
+
+── 4. THE BOT WILL NOT PESTER YOU ─────────────────────────────────────
+
+CHAMP only messages you inside a conversation you started. If you begin
+something and get pulled away, you will get one reminder after five minutes,
+and nothing after that. Your unfinished flow stays where you left it for 30
+minutes; after that just say "hi" and start again.
+
+
+── QUESTIONS ──────────────────────────────────────────────────────────
+
+If the bot says your number is not registered, or the app shows no reporting
+manager against you, that is a directory problem, not something you can fix
+from the app. Write to [HR CONTACT].
+
+Anything else, [R&R CONTACT].
+
+
+═══════════════════════════════════════════════════════════════════════
+MAIL 2 — REPORTING MANAGERS
+═══════════════════════════════════════════════════════════════════════
+
+Subject: CHAMP: you will be approving your team's quarterly nominations
+
+Hello,
+
+Along with everything in the all-company mail, you have one extra
+responsibility in CHAMP: approving the quarterly self-nominations your direct
+reports file.
+
+There is no "manager" role to be granted. The app reads the reporting line
+from DarwinBox. If someone reports to you there, their nomination comes to
+you, automatically, and it follows them if the line changes.
+
+
+── FINDING YOUR QUEUE ─────────────────────────────────────────────────
+
+Sign in at [CONSOLE URL] with your work email. An "Approvals" link appears in
+the top navigation once you have at least one direct report. A red number on
+it means something is waiting.
+
+That badge is the only alert you get. Nothing is pushed to WhatsApp and
+nothing is mailed to you, which is deliberate — but it does mean the badge is
+worth glancing at when you sign in.
+
+The queue has four tabs: Awaiting you, Approved, Not approved, and
+Everything.
+
+
+── WHAT YOU ARE ACTUALLY APPROVING ────────────────────────────────────
+
+Each card shows you the person, the quarter it covers, the CHAMP behaviour
+they claimed, their one-line headline, and the full evidence. Nothing is
+truncated, on purpose. You are being asked whether this piece of work is real
+and worth putting in front of the R&R committee with your name attached.
+
+Two useful questions: does the evidence actually demonstrate the behaviour
+they picked, and could you verify the number they quoted if someone asked?
+
+
+── APPROVING OR DECLINING ─────────────────────────────────────────────
+
+Approve (navy) or Decline (red).
+
+If you decline, a short note is required, and your report reads it word for
+word. Make it specific enough to act on. "Not enough detail" tells them
+nothing; "give me the changeover times before and after, and who else ran it"
+tells them exactly what to fix. They can rework it and send it back to you,
+and a good decline usually produces a much better second attempt.
+
+If you approve, you can leave an optional note for the committee. Worth doing
+when you have context they would not otherwise have.
+
+Your decision is final. Approved nominations go straight to the R&R
+committee; there is no second approval stage. You can review anything you
+have decided under the other tabs, but you cannot change it afterwards, so
+read before you click.
+
+
+── A FEW EDGE CASES ───────────────────────────────────────────────────
+
+  • Your report can keep editing while it is awaiting you, so what you see is
+    always their latest version.
+  • If they withdraw it, it leaves your queue.
+  • If the R&R committee removes a nomination from the pool, you will see it
+    marked Removed with their reason.
+  • If someone who reports to you cannot file at all, their DarwinBox record
+    probably has no manager against it. [HR CONTACT] can fix that; nobody can
+    fix it from inside the app.
+
+
+── AND THE EVERYDAY PART ──────────────────────────────────────────────
+
+Everything in the all-company mail applies to you too. Spot recognition on
+WhatsApp is the part of CHAMP that gets used daily, and teams tend to follow
+their manager's lead on it.
+
+
+═══════════════════════════════════════════════════════════════════════
+MAIL 3 — R&R COMMITTEE AND ADMINS
+═══════════════════════════════════════════════════════════════════════
+
+Subject: CHAMP console: nominations, moderation and programme settings
+
+Hello,
+
+This covers the console. Committee members see Moderation, Nominations,
+Export and Audit Log. Admins additionally see Behaviours, Settings, Employees
+and Admin Users.
+
+Sign in at [CONSOLE URL] with your work email, then open Console from the top
+navigation.
+
+
+── NOMINATIONS ────────────────────────────────────────────────────────
+
+This is where you shortlist. It opens on the Approved pool, which is the set
+managers have already stood behind.
+
+Filter by quarter, CHAMP behaviour, function, site, or search names,
+headlines and evidence. Click any row to read the full evidence and the
+manager's note. Export CSV gives you everything matching your current
+filters, including the evidence in full, so you can work through it offline
+or circulate it.
+
+Removing a nomination. If an entry does not belong in the pool — a duplicate,
+the wrong quarter, something copied from elsewhere, something inappropriate —
+you can remove it. A written reason of at least 15 characters is required and
+the employee reads it exactly as you typed it.
+
+Be deliberate about this:
+
+  • It cannot be undone. There is no restore.
+  • The quarter then closes to that person. They cannot file a replacement.
+  • Removing an approved nomination overrides their manager's judgement. The
+    confirmation box tells you when that is the case, and the audit log
+    records it.
+  • The record is not deleted. The evidence stays readable under the Removed
+    tab.
+
+A mistaken removal has to be sorted out with HR, so read the evidence before
+you remove, not after.
+
+What you cannot do here is approve or decline. That stays with the reporting
+manager, who knows the work.
+
+
+── MODERATION ─────────────────────────────────────────────────────────
+
+The flag queue catches two gaming patterns automatically: bursts (one person
+posting a lot of recognitions very quickly) and reciprocal loops (two people
+recognising each other back and forth). Flagged recognitions stay visible and
+are never removed automatically. You either dismiss the flag or remove the
+recognition with a reason.
+
+Below the queue is every recognition across every status, searchable and
+filterable, with the same remove-with-reason action.
+
+
+── ANALYTICS ──────────────────────────────────────────────────────────
+
+Participation over time, splits by function and shift, the behaviour
+breakdown, direction of recognition (junior to senior, peer to peer, across
+functions), concentration (whether a small group is doing all the
+recognising), and dark spots — teams, shifts or sites where nothing is
+happening. The dark spots view is usually the most actionable thing on the
+page.
+
+
+── EXPORT AND AUDIT ───────────────────────────────────────────────────
+
+Export gives you filtered recognitions as CSV or Excel, with the full
+moderation trail. Every export is audited.
+
+The Audit Log records every sign-in, every moderation action, every
+nomination decision and removal, every settings change, and who did it.
+
+
+── SETTINGS (ADMINS) ──────────────────────────────────────────────────
+
+Recognition rules: the cap per pair per month (currently 2), the minimum
+reason length, and the blocklist of generic phrases rejected as a whole
+reason.
+
+Flag thresholds: how many recognitions in what window counts as a burst, and
+what counts as a loop.
+
+Quarterly self-nomination: switch it on or off entirely, set the minimum and
+maximum evidence length, and set the late-filing window — how many days after
+a quarter ends people can still file for it. Quarters follow the Indian
+financial year, so Q1 is April–June.
+
+Weekly digest: on or off, and whether it goes to everyone or leadership only.
+
+Changing these takes effect immediately and is recorded in the audit log.
+
+
+── EMPLOYEES AND THE DIRECTORY (ADMINS) ───────────────────────────────
+
+The directory is synced from DarwinBox nightly, and can be synced on demand
+from the Settings tab. It is also what decides who approves whose nomination,
+through the reporting line.
+
+Two things are worth checking after any sync: people with no reporting
+manager against them (they cannot file a nomination at all), and people whose
+mobile number is missing or wrong (the WhatsApp bot will not recognise them).
+
+Behaviours can be renamed, re-described, recoloured or retired. Retiring one
+removes it from both the recognition flow and the nomination picker
+immediately. Existing records keep the behaviour they were filed against.
+
+
+── ONE NOTE ON MESSAGING ──────────────────────────────────────────────
+
+CHAMP only messages people inside a conversation they started themselves.
+Recognition notifications and the weekly digest reach someone only if they
+are currently talking to the bot. That is intentional, so nobody is woken up
+by a colleague on another shift. If you ever need the old broadcast
+behaviour, that is a configuration change, not a console setting — talk to
+whoever runs the deployment.
+
+Questions on any of this, [R&R CONTACT].

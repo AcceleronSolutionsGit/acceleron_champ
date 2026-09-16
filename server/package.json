@@ -10,6 +10,7 @@
     "start": "NODE_ENV=production node dist/index.js",
     "migrate": "node dist/db/migrate.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "mail:test": "tsx src/mail-test.ts",
     "seed:reset": "tsx src/db/seed/reset.ts",
     "sync:darwinbox": "tsx src/modules/sync/runSync.ts"
   },

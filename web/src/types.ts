@@ -238,7 +238,7 @@ export interface AppSettings {
 
 // ── Quarterly self-nomination ────────────────────────────────────────────────
 
-export type NominationStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn'
+export type NominationStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'removed'
 
 /** Indian financial-year quarter: Q1 = Apr–Jun. `code` looks like 'FY2026-Q2'. */
 export interface Quarter {
@@ -254,12 +254,15 @@ export interface Quarter {
 export interface NominationItem {
   id: number
   quarter: { code: string; label: string; months: string }
+  /** CHAMP behaviour claimed. Null only on rows filed before 007. */
+  behaviour: BehaviourRef | null
   title: string
   evidence: string
   status: NominationStatus
   employee: PersonLite & { employeeCode?: string; levelGrade?: string }
   manager: PersonLite | null
   decision: { by: string | null; byEmail: string | null; at: string | null; note: string | null } | null
+  removal: { by: string | null; at: string | null; reason: string | null } | null
   createdAt: string
   updatedAt: string
   /** Present on /mine — whether the owner may still change it. */

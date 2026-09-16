@@ -69,14 +69,37 @@ function buildConfig() {
     },
     email: {
       provider: (env.EMAIL_PROVIDER ?? 'console') as 'console' | 'smtp' | 'ses',
-      from: env.EMAIL_FROM ?? 'no-reply@acceleronsolutions.io',
+      /**
+       * Envelope sender. Microsoft 365 rejects a From that is not the
+       * authenticated mailbox (550 5.7.60 "Client does not have permissions to
+       * send as this sender") unless Send As has been granted, so the
+       * authenticated user is the safest default when EMAIL_FROM is unset.
+       */
+      from: env.EMAIL_FROM || env.SMTP_USER || 'no-reply@acceleronsolutions.io',
       smtp: {
         host: env.SMTP_HOST ?? '',
         port: num(env.SMTP_PORT, 587),
         user: env.SMTP_USER ?? '',
         pass: env.SMTP_PASS ?? '',
+        /** true = implicit TLS (465). M365 uses STARTTLS on 587, so false. */
         secure: bool(env.SMTP_SECURE, false),
+        /**
+         * Refuse to send if STARTTLS cannot be negotiated. On by default: an
+         * OTP is a credential, and silently downgrading to plaintext because a
+         * relay did not advertise STARTTLS is not a trade worth making.
+         */
+        requireTls: bool(env.SMTP_REQUIRE_TLS, true),
+        /**
+         * Reuse one authenticated connection across sends. Worth it on a
+         * long-running host; pointless on serverless, where every invocation
+         * is a fresh process, so it follows the runtime.
+         */
+        pool: bool(env.SMTP_POOL, !env.VERCEL),
+        /** Fail fast rather than leaving a user staring at a spinner. */
+        timeoutMs: num(env.SMTP_TIMEOUT_MS, 15_000),
       },
+      /** Verify the SMTP connection at boot and log the result (non-fatal). */
+      verifyOnBoot: bool(env.SMTP_VERIFY_ON_BOOT, true),
     },
     whatsapp: {
       provider: (env.WHATSAPP_PROVIDER ?? 'simulator') as 'simulator' | 'meta' | 'gallabox',

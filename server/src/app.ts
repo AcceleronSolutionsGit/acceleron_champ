@@ -17,6 +17,7 @@ import { assertProductionSecrets, config } from './config'
 import { initDb } from './db/knex'
 import { seedIfEmpty, upsertAdminUsers } from './db/seed/demo'
 import { errorHandler } from './middleware/errorHandler'
+import { verifySmtp } from './modules/auth/mailer'
 import { isServerless, migrateAtBoot } from './runtime'
 import authRouter from './routes/auth'
 import feedRouter from './routes/feed'
@@ -51,6 +52,21 @@ export async function createApp(): Promise<Express> {
   if (migrateAtBoot()) {
     await seedIfEmpty(db)
     await upsertAdminUsers(db)
+  }
+
+  // Check the mail route once at boot. Deliberately non-fatal: the console
+  // must still come up so an admin can sign in by other means and look at the
+  // logs. But a deployment where nobody can receive an OTP should say so on
+  // startup, not at 9am on Monday when the first person tries to sign in.
+  // Skipped on serverless: createApp() runs on every cold start there, and an
+  // SMTP handshake per cold start is latency nobody asked for.
+  if (!isServerless && config.email.provider === 'smtp' && config.email.verifyOnBoot) {
+    const result = await verifySmtp()
+    if (result.ok) {
+      console.log(`[email] SMTP ready — ${config.email.smtp.host} as ${config.email.smtp.user}`)
+    } else {
+      console.error(`[email] SMTP NOT WORKING — sign-in codes will not be delivered:\n  ${result.error}`)
+    }
   }
 
   const app = express()
