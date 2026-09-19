@@ -2541,6 +2541,178 @@ h3 { font-size: 15px; font-weight: 600; }
   color: var(--navy-600);
   margin-bottom: 4px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Wall of Recognition — slideshow (FR-18)
+
+   The kiosk runs unattended on a wall-mounted screen, so the whole block is
+   sized for distance rather than for a desk: three cards to a slide, type
+   roughly double the console's, and controls that only appear to matter when
+   somebody is close enough to use them.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.board-show { overflow: hidden; }
+
+.board-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 26px 36px 16px;
+}
+
+/* Every slide is stacked in the same grid cell; only the current one is
+   opaque. Stacking (rather than mounting one at a time) means the crossfade
+   has an outgoing frame and the browser has already laid the next slide out. */
+.board-slides {
+  flex: 1;
+  display: grid;
+  min-height: 0;
+}
+.board-slide {
+  grid-area: 1 / 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+  align-content: stretch;
+  opacity: 0;
+  transform: translateY(14px) scale(.995);
+  transition: opacity .6s var(--ease-smooth), transform .6s var(--ease-smooth);
+  pointer-events: none;
+}
+.board-slide.current {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+/* Holds the column open on a short final slide so its cards keep the width
+   they had on every other slide. */
+.board-card-pad { visibility: hidden; }
+
+/* ── the card, at kiosk size ─────────────────────────────────────────────── */
+.board-card-big {
+  display: flex;
+  flex-direction: column;
+  /* Centred, not stretched: a 1080p screen is far taller than three short
+     reasons need, and top-aligned text leaves a lake of white under every
+     card. The trio name / quote / behaviour sits in the middle of its
+     column and each card's block finds its own height. */
+  justify-content: center;
+  padding: 34px 36px;
+  border-left-width: 6px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+.board-card-big:hover { transform: none; }
+.board-card-big .board-who {
+  font-size: clamp(21px, 1.9vw, 38px);
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 18px;
+}
+.board-card-big .board-arrow { margin: 0 10px; }
+.board-card-big .board-reason {
+  color: var(--ink);
+  font-size: clamp(17px, 1.5vw, 30px);
+  line-height: 1.5;
+  margin-bottom: 26px;
+  /* A single runaway reason must not push the behaviour chip off the slide. */
+  display: -webkit-box;
+  -webkit-line-clamp: 8;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.board-card-big .board-meta {
+  font-size: clamp(12px, .85vw, 17px);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.board-card-big .board-chip { font-size: inherit; padding: 5px 16px; }
+
+/* ── controls ────────────────────────────────────────────────────────────── */
+.board-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 18px 0 4px;
+}
+.board-nav {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: var(--navy-600);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: .45;
+  transition: opacity var(--duration-fast) var(--ease-smooth),
+              border-color var(--duration-fast) var(--ease-smooth);
+}
+.board-nav:hover { opacity: 1; border-color: var(--navy-300); }
+
+.board-dots { display: flex; align-items: center; gap: 9px; }
+/* Each dot is also the timer for its slide: the fill sweeps across the
+   current one, so the screen says how long it has left without a caption. */
+.board-dot {
+  position: relative;
+  width: 46px;
+  height: 5px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--navy-100);
+  overflow: hidden;
+  cursor: pointer;
+}
+.board-dot.active { background: var(--navy-200); }
+.board-dot-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: var(--brand-red);
+  border-radius: inherit;
+}
+.board-dot.active .board-dot-fill {
+  animation: board-sweep linear forwards;
+}
+@keyframes board-sweep {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+
+.board-show-state {
+  min-width: 132px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+.board-show-state.paused { color: var(--brand-red); }
+
+/* ── smaller screens ─────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  /* Below kiosk width this is somebody's laptop or phone, where three stacked
+     cards are taller than the viewport. Let the page scroll rather than
+     clipping the third card off the bottom with no way to reach it. */
+  .board-show { overflow: visible; }
+  .board-stage { padding: 18px 20px 10px; }
+  .board-slides { min-height: auto; }
+  .board-slide { grid-template-columns: 1fr; gap: 14px; }
+  .board-card-pad { display: none; }
+  .board-card-big { padding: 20px 22px; justify-content: flex-start; }
+  .board-card-big .board-reason { -webkit-line-clamp: 4; margin-bottom: 18px; }
+}
+
+/* A kiosk is a screen somebody has to sit near all day; honour the setting. */
+@media (prefers-reduced-motion: reduce) {
+  .board-slide { transition: opacity .01ms; transform: none; }
+  .board-dot.active .board-dot-fill { animation: none; width: 100%; }
+}
+
 .board-cta .wa {
   color: var(--brand-red);
   font-weight: 700;

@@ -36,7 +36,6 @@ const FONT = 'Segoe UI,Helvetica Neue,Arial,sans-serif'
 
 /** Everything the template needs, with no database types in sight. */
 export interface RecognitionMailInput {
-  recognitionId: number
   recipientName: string
   giverName: string
   giverFunction?: string | null
@@ -136,7 +135,6 @@ export function renderRecognitionText(input: RecognitionMailInput): string {
         : ''
     }`,
     `When      : ${formatIst(input.createdAt, 'DD MMM YYYY, h:mm A')} IST`,
-    `Reference : CHAMP-${input.recognitionId}`,
   ]
   if (input.managerName) {
     lines.push('', `${input.managerName} (your reporting manager) is copied on this mail.`)
@@ -260,10 +258,7 @@ export function renderRecognitionHtml(input: RecognitionMailInput): string {
        `${esc(input.giverName)}${
          who ? `<span style="font-weight:400;color:${MUTED};"> &nbsp;·&nbsp; ${esc(who)}</span>` : ''
        }`,
-     )}${detailRow('When', esc(when))}${detailRow(
-    'Reference',
-    `CHAMP-${input.recognitionId}`,
-  )}
+     )}${detailRow('When', esc(when))}
      </table>
    </td></tr>
 
@@ -323,7 +318,6 @@ export async function sendRecognitionMail(recognition: Recognition): Promise<voi
   const giverEmail = (giver.email ?? '').trim()
 
   const input: RecognitionMailInput = {
-    recognitionId: recognition.id,
     recipientName: recipient.name,
     giverName: giver.name,
     giverFunction: giver.function,

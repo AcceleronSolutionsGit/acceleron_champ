@@ -19,7 +19,6 @@ import {
 } from './modules/mail/recognitionMail'
 
 const sample: RecognitionMailInput = {
-  recognitionId: 4127,
   recipientName: 'Priya Nair',
   giverName: 'Rahul Verma',
   giverFunction: 'Engineering',
