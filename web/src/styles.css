@@ -2545,9 +2545,10 @@ h3 { font-size: 15px; font-weight: 600; }
 /* ═══════════════════════════════════════════════════════════════════════════
    Wall of Recognition — departure board (FR-18)
 
-   A row list under a fixed column strip, four rows to a page, turning over on
-   a timer. Four rather than six because the row height is what sets the type
-   size, and this has to be legible from the far side of a floor. The eye
+   A row list under a fixed column strip, three rows to a page, turning over
+   on a timer. Three rather than six because the row height is what sets the
+   type size, and this has to be legible from the far side of a floor — the
+   reason in particular, which is the part actually worth reading. The eye
    learns the columns once and then reads down one of them.
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -2597,10 +2598,10 @@ h3 { font-size: 15px; font-weight: 600; }
 .board-row {
   display: grid;
   grid-template-columns:
-    minmax(190px, 1.05fr)   /* recognised */
+    minmax(230px, 1.25fr)   /* recognised */
     minmax(244px, .8fr)     /* behaviour  */
     minmax(130px, .78fr)    /* by         */
-    minmax(300px, 3.3fr)    /* what they did */
+    minmax(300px, 3.6fr)    /* what they did */
     minmax(88px, .5fr)      /* site       */
     minmax(88px, .5fr);     /* when       */
   align-items: center;
@@ -2623,7 +2624,7 @@ h3 { font-size: 15px; font-weight: 600; }
 .board-list-body {
   flex: 1;
   display: grid;
-  grid-template-rows: repeat(4, 1fr);
+  grid-template-rows: repeat(3, 1fr);
   min-height: 0;
 }
 
@@ -2676,9 +2677,11 @@ h3 { font-size: 15px; font-weight: 600; }
   overflow: hidden;
 }
 
+/* Wide enough that a two-word name stays on one line at this size — a name
+   that wraps reads as two people from a distance. */
 .bl-name {
   font-family: var(--font-heading);
-  font-size: clamp(20px, 1.6vw, 34px);
+  font-size: clamp(21px, 1.72vw, 36px);
   font-weight: 700;
   color: var(--navy-600);
   line-height: 1.2;
@@ -2711,7 +2714,7 @@ h3 { font-size: 15px; font-weight: 600; }
 }
 
 .bl-giver {
-  font-size: clamp(14px, 1.1vw, 23px);
+  font-size: clamp(14px, 1.18vw, 25px);
   font-weight: 500;
   color: var(--muted);
   white-space: nowrap;
@@ -2719,12 +2722,12 @@ h3 { font-size: 15px; font-weight: 600; }
 }
 
 .bl-reason {
-  font-size: clamp(14px, 1.15vw, 24px);
-  line-height: 1.45;
+  font-size: clamp(16px, 1.72vw, 36px);
+  line-height: 1.4;
   color: var(--ink);
   font-style: italic;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
 }
 
@@ -2797,6 +2800,26 @@ h3 { font-size: 15px; font-weight: 600; }
   font-variant-numeric: tabular-nums;
 }
 .board-show-state.paused { color: var(--brand-red); }
+
+/* ── mid-size panels ─────────────────────────────────────────────────────── */
+/* Between about 1100px and full HD the column minimums eat most of the width
+   and the reason — the part worth reading — is the one that ends up clipped.
+   Everything else gives some back. */
+@media (min-width: 1101px) and (max-width: 1500px) {
+  .board-list-head,
+  .board-row {
+    grid-template-columns:
+      minmax(196px, 1fr)
+      minmax(190px, .7fr)
+      minmax(128px, .7fr)
+      minmax(300px, 4fr)
+      minmax(74px, .45fr)
+      minmax(78px, .45fr);
+    gap: 14px;
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
 
 /* ── narrower screens ────────────────────────────────────────────────────── */
 /* Below kiosk width this is somebody's laptop. Six columns will not fit, so

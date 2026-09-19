@@ -2,7 +2,7 @@
  * / — login-free plant kiosk (FR-18), the CHAMP Wall of Recognition.
  *
  * Laid out as a DEPARTURE BOARD: one recognition per row under a fixed column
- * strip, four rows to a page, turning over every 15 s. A row list beats a card
+ * strip, three rows to a page, turning over every 15 s. A row list beats a card
  * grid here for the reason airports use one — the eye learns the columns once
  * and after that reads down a single column to find what it wants, instead of
  * re-parsing a layout in every tile.
@@ -17,7 +17,7 @@
  *     fresh list, and if the page index were left alone a new arrival would
  *     shunt everyone one place along mid-page. Pages are therefore keyed by
  *     the id of their first row, and after a reload the index is moved to
- *     wherever that key landed — the viewer keeps reading the same four.
+ *     wherever that key landed — the viewer keeps reading the same three.
  *   · nobody being there to fix it. No buttons are required: the board turns
  *     over on its own, and the arrow keys, space and a click are there only
  *     for the person who walks up to it.
@@ -36,9 +36,9 @@ import { formatIstClock, timeAgo } from '../format'
 import type { FeedItem } from '../types'
 
 const REFRESH_MS = 20_000
-/** Rows to a page. Four is what keeps the type big enough to read from the
- *  far side of a floor; twelve items then make three pages. */
-const PER_PAGE = 4
+/** Rows to a page. Three is what keeps the type big enough to read from the
+ *  far side of a floor; twelve items then make four pages. */
+const PER_PAGE = 3
 /** How long a page holds before it turns over. */
 const PAGE_MS = 15_000
 /** How long the board pauses after somebody touches it. */
