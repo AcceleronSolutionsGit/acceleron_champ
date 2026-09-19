@@ -2566,21 +2566,6 @@ h3 { font-size: 15px; font-weight: 600; }
   color: var(--ink);
 }
 
-/* Visually hidden, still read aloud. The flap spans are aria-hidden while
-   they riffle, so the settled name has to live somewhere for a screen
-   reader — and for anything scraping the board. */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 /* ── header ──────────────────────────────────────────────────────────────── */
 .board-show .board-header {
   background: transparent;
@@ -2647,9 +2632,14 @@ h3 { font-size: 15px; font-weight: 600; }
   position: relative;
   display: flex;
   flex-direction: column;
+  /* Top-aligned, so the behaviour labels and the names line up across all
+     three columns — centring each panel independently leaves them at three
+     different heights, which is the thing that reads as untidy from a
+     distance. The leftover space collects in one band above the meta rule
+     instead of a gap in the middle. */
   min-height: 0;
   overflow: hidden;
-  padding: 44px 42px 38px;
+  padding: 40px 42px;
   background: #ffffff;
   /* The hinge a real flap turns on. */
   transform-origin: top center;
@@ -2714,33 +2704,27 @@ h3 { font-size: 15px; font-weight: 600; }
 .bt-name {
   margin: 0;
   font-family: var(--font-heading);
-  font-size: clamp(28px, 3.45vw, 72px);
+  font-size: clamp(26px, 3.05vw, 64px);
   font-weight: 900;
   line-height: 1.02;
   letter-spacing: -.022em;
   color: var(--ink);
-  /* Flap boards are monospaced because every character sits on one drum; the
-     tabular figures keep the riffle from shuffling the name sideways. */
-  font-variant-numeric: tabular-nums;
 }
-/* Mid-roll characters sit back so the landed ones read as settled. */
-.flap-rolling { color: #c3cad6; }
-.flap-blank { color: transparent; }
-
 .bt-by {
   margin-top: clamp(10px, 1.4vh, 20px);
-  font-size: clamp(16px, 1.42vw, 29px);
+  font-size: clamp(15px, 1.32vw, 27px);
   line-height: 1.3;
   font-weight: 300;
   color: var(--muted);
 }
 .bt-by strong { color: var(--ink); font-weight: 500; }
 
+/* The recognition is the point of the board — the name says who, this says
+   what they actually did, so it carries the most weight on the panel. */
 .bt-reason {
-  flex: 1;
-  margin: clamp(18px, 2.8vh, 40px) 0 0;
-  font-size: clamp(17px, 1.72vw, 36px);
-  line-height: 1.45;
+  margin: clamp(20px, 3.2vh, 44px) 0 0;
+  font-size: clamp(18px, 2.05vw, 43px);
+  line-height: 1.38;
   font-weight: 300;
   color: #23293a;
   /* The clamp is the last line of defence only; reasonSizeClass() in the
@@ -2751,16 +2735,16 @@ h3 { font-size: 15px; font-weight: 600; }
   overflow: hidden;
 }
 /* Longer reasons step down rather than getting their ending cut off. */
-.bt-reason.is-long    { font-size: clamp(16px, 1.5vw, 32px); }
-.bt-reason.is-longer  { font-size: clamp(15px, 1.3vw, 27px); }
-.bt-reason.is-longest { font-size: clamp(14px, 1.1vw, 23px); line-height: 1.4; }
+.bt-reason.is-long    { font-size: clamp(17px, 1.76vw, 37px); }
+.bt-reason.is-longer  { font-size: clamp(16px, 1.46vw, 30px); }
+.bt-reason.is-longest { font-size: clamp(14px, 1.18vw, 24px); line-height: 1.42; }
 
 .bt-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: clamp(16px, 2.2vh, 30px);
+  margin-top: auto;
   padding-top: clamp(14px, 1.8vh, 26px);
   border-top: 1px solid var(--line);
   font-size: clamp(13px, 1.16vw, 24px);

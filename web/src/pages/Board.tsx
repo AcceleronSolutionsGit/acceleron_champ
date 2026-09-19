@@ -46,7 +46,7 @@ const PER_SLIDE = 3
 const SLIDE_MS = 15_000
 /** How long the board pauses after somebody touches it. */
 const RESUME_MS = 30_000
-/** Gap between one tile flapping and the next — the cascade across the board. */
+/** Gap between one panel flapping and the next — the cascade across the board. */
 const FLAP_STAGGER_MS = 130
 const LIMIT = 12
 
@@ -330,9 +330,7 @@ function BoardTile({
     >
       <div className="bt-behaviour">{item.behaviour.name}</div>
 
-      <h2 className="bt-name">
-        <SplitFlapText text={item.recipient.name} startDelay={delay + 240} reduced={reduced} />
-      </h2>
+      <h2 className="bt-name">{item.recipient.name}</h2>
 
       <div className="bt-by">
         recognised by <strong>{item.giver.name}</strong>
@@ -350,11 +348,6 @@ function BoardTile({
   )
 }
 
-const FLAP_GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-/** Shuffles per character before it settles. Three is enough to read as motion
- *  without the name being illegible for long. */
-const FLAP_CYCLES = 3
-const FLAP_TICK_MS = 55
 /**
  * Sit a behaviour colour on a white ground without it going pale.
  *
@@ -404,83 +397,6 @@ function reasonSizeClass(reason: string): string {
   return ' is-longest'
 }
 
-/** Blank flap filler — keeps the column width steady while a name lands. */
-const NBSP = '\u00A0'
-
-/**
- * The split-flap effect, on the one field worth it: the name of the person
- * being recognised. Letters riffle and settle left to right, the way a flap
- * board resolves a destination.
- *
- * Deliberately one timer for the whole string rather than one per character —
- * a kiosk box is usually the cheapest machine in the building, and six of
- * these are on screen at once.
- */
-function SplitFlapText({
-  text,
-  startDelay,
-  reduced,
-}: {
-  text: string
-  startDelay: number
-  reduced: boolean
-}): React.ReactElement {
-  const [frame, setFrame] = useState(-1)
-
-  useEffect(() => {
-    if (reduced) return
-    setFrame(-1)
-    const total = text.length * FLAP_CYCLES
-    let tick = 0
-    let interval = 0
-    const start = window.setTimeout(() => {
-      interval = window.setInterval(() => {
-        tick += 1
-        setFrame(tick)
-        if (tick > total) window.clearInterval(interval)
-      }, FLAP_TICK_MS)
-    }, startDelay)
-    return () => {
-      window.clearTimeout(start)
-      if (interval) window.clearInterval(interval)
-    }
-  }, [text, startDelay, reduced])
-
-  if (reduced) return <>{text}</>
-
-  const chars = text.split('')
-  // Everything left of the cursor has landed, the character at it is
-  // riffling, and everything right of it is still a blank flap.
-  const cursor = frame < 0 ? -1 : Math.floor(frame / FLAP_CYCLES)
-  if (cursor >= chars.length) return <>{text}</>
-
-  return (
-    <>
-      <span aria-hidden>
-        {chars.map((char, i) => {
-          if (i < cursor) return <span key={i}>{char}</span>
-          if (i === cursor && char !== ' ') {
-            const glyph = FLAP_GLYPHS[(frame * 7 + i * 13) % FLAP_GLYPHS.length]
-            return (
-              <span key={i} className="flap-rolling">
-                {glyph}
-              </span>
-            )
-          }
-          // Blank flap: a non-breaking space holds the column width steady so
-          // the name does not visibly grow as it resolves.
-          return (
-            <span key={i} className="flap-blank">
-              {NBSP}
-            </span>
-          )
-        })}
-      </span>
-      {/* The real name stays in the accessibility tree while the flaps roll. */}
-      <span className="sr-only">{text}</span>
-    </>
-  )
-}
 
 function BoardCard({ item }: { item: FeedItem }): React.ReactElement {
   return (
