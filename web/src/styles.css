@@ -2543,13 +2543,12 @@ h3 { font-size: 15px; font-weight: 600; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Wall of Recognition — departure board (FR-18)
+   Wall of Recognition — tiled slides (FR-18)
 
-   A row list under a fixed column strip, three rows to a page, turning over
-   on a timer. Three rather than six because the row height is what sets the
-   type size, and this has to be legible from the far side of a floor — the
-   reason in particular, which is the part actually worth reading. The eye
-   learns the columns once and then reads down one of them.
+   Three recognitions side by side, turning over every 15 s, each tile
+   flapping into place on a stagger. Sized for a wall-mounted panel rather
+   than a desk: the reason is the biggest type on the tile, because it is the
+   part actually worth walking over to read.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .board-show { overflow: hidden; }
@@ -2574,179 +2573,166 @@ h3 { font-size: 15px; font-weight: 600; }
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 22px 32px 12px;
+  padding: 24px 34px 14px;
 }
 
-.board-list {
+.board-slide {
   flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  min-height: 0;
+  /* The flaps have to tumble towards the viewer, so the perspective belongs
+     on the container the tiles share, not on each tile. */
+  perspective: 1800px;
+}
+.board-tile-pad { visibility: hidden; }
+
+/* ── the tile ────────────────────────────────────────────────────────────── */
+.board-tile {
+  position: relative;
   display: flex;
   flex-direction: column;
+  /* Centred, not stretched: a 16:9 panel is far taller than three short
+     reasons need, and a top-aligned block leaves a lake of white under every
+     tile with the meta line stranded at the bottom. */
+  justify-content: center;
   min-height: 0;
+  padding: 30px 32px;
   background: #ffffff;
   border: 1px solid var(--line);
+  border-top: 7px solid var(--behaviour, var(--navy-600));
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  /* The flap has to tumble towards the viewer, so the perspective belongs on
-     the container the rows share, not on each row. */
-  perspective: 1400px;
-}
-
-/* One column definition, used by the head strip, the rows and the padding
-   rows alike — the three must never drift apart. */
-.board-list-head,
-.board-row {
-  display: grid;
-  grid-template-columns:
-    minmax(230px, 1.25fr)   /* recognised */
-    minmax(244px, .8fr)     /* behaviour  */
-    minmax(130px, .78fr)    /* by         */
-    minmax(300px, 3.6fr)    /* what they did */
-    minmax(88px, .5fr)      /* site       */
-    minmax(88px, .5fr);     /* when       */
-  align-items: center;
-  gap: 20px;
-  padding: 0 26px;
-}
-
-.board-list-head {
-  padding-top: 13px;
-  padding-bottom: 13px;
-  background: var(--navy-600);
-  color: #ffffff;
-  font-family: var(--font-heading);
-  font-size: clamp(10px, .68vw, 15px);
-  font-weight: 700;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-}
-
-.board-list-body {
-  flex: 1;
-  display: grid;
-  grid-template-rows: repeat(3, 1fr);
-  min-height: 0;
-}
-
-.board-row {
-  border-top: 1px solid var(--line);
-  min-height: 0;
   /* The hinge a real flap turns on. */
   transform-origin: top center;
   backface-visibility: hidden;
 }
-.board-list-body .board-row:first-child { border-top: 0; }
-.board-row:nth-child(even) { background: #fbfcfe; }
-.board-row-pad { background: transparent; }
 
 /* ── the flap ────────────────────────────────────────────────────────────── */
-/* Each row drops from its hinge with a small overshoot, one after the next,
-   so a page turnover cascades down the board the way a flap bank does. */
-.board-row-flap {
-  animation: board-flap .5s cubic-bezier(.2, .8, .3, 1) both;
+/* Each tile drops from its hinge with a small overshoot, one after the next,
+   so a turnover cascades across the board the way a flap bank does. */
+.board-tile-flap {
+  animation: board-flap .62s cubic-bezier(.2, .8, .3, 1) both;
   animation-delay: var(--flap-delay, 0ms);
 }
 @keyframes board-flap {
-  0%   { transform: rotateX(-88deg); opacity: 0; }
-  55%  { transform: rotateX(9deg);   opacity: 1; }
-  78%  { transform: rotateX(-3deg); }
+  0%   { transform: rotateX(-91deg); opacity: 0; }
+  55%  { transform: rotateX(8deg);   opacity: 1; }
+  78%  { transform: rotateX(-2.5deg); }
   100% { transform: rotateX(0);      opacity: 1; }
 }
 
 /* The seam the flap turns on, lit for the length of the tumble. */
-.board-row-flap::after {
+.board-tile-flap::before {
   content: '';
   position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  background: rgba(33, 47, 96, .35);
+  inset: -7px -1px auto -1px;
+  height: 7px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: rgba(255, 255, 255, .55);
   opacity: 0;
-  animation: board-seam .5s linear both;
+  animation: board-seam .62s linear both;
   animation-delay: var(--flap-delay, 0ms);
+  pointer-events: none;
 }
-.board-row { position: relative; }
 @keyframes board-seam {
-  0%   { opacity: .9; }
-  70%  { opacity: .25; }
+  0%   { opacity: .95; }
+  60%  { opacity: .3; }
   100% { opacity: 0; }
 }
 
-/* ── cells ───────────────────────────────────────────────────────────────── */
-.board-row > span {
+/* ── tile contents ───────────────────────────────────────────────────────── */
+.bt-chip {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
   min-width: 0;
+  padding: 6px 15px;
+  border: 1px solid var(--behaviour, var(--navy-600));
+  border-radius: var(--radius-full);
+  background: #ffffff;
+  color: var(--behaviour, var(--navy-600));
+  font-family: var(--font-heading);
+  font-size: clamp(11px, .72vw, 16px);
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.bt-chip .chip-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: var(--behaviour, var(--navy-600));
+}
+/* A behaviour longer than the tile ellipsises rather than being sliced off. */
+.bt-chip .chip-label {
+  min-width: 0;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Wide enough that a two-word name stays on one line at this size — a name
-   that wraps reads as two people from a distance. */
-.bl-name {
+.bt-name {
+  margin: 18px 0 0;
   font-family: var(--font-heading);
-  font-size: clamp(21px, 1.72vw, 36px);
+  font-size: clamp(22px, 1.95vw, 42px);
   font-weight: 700;
+  line-height: 1.15;
   color: var(--navy-600);
-  line-height: 1.2;
-  /* Flap boards are monospaced because every character occupies one drum;
-     the tabular figures keep the riffle from shuffling the name sideways. */
+  /* Flap boards are monospaced because every character sits on one drum; the
+     tabular figures keep the riffle from shuffling the name sideways. */
   font-variant-numeric: tabular-nums;
 }
 /* Mid-roll characters sit back a shade so the landed ones read as settled. */
 .flap-rolling { color: var(--faint); }
 .flap-blank { color: transparent; }
 
-/* Sized by the longest label the programme has — CUSTOMER CENTRICITY — so a
-   behaviour rename is the only thing that can make this column too narrow. */
-.bl-behaviour .board-chip {
-  font-size: clamp(11px, .74vw, 16px);
-  font-weight: 700;
-  letter-spacing: .06em;
-  padding: 6px 15px;
-  border-width: 1px;
-  border-style: solid;
-  background: #ffffff;
-  max-width: 100%;
-  min-width: 0;
-}
-.bl-behaviour .chip-label {
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.bl-giver {
-  font-size: clamp(14px, 1.18vw, 25px);
-  font-weight: 500;
+.bt-by {
+  margin-top: 7px;
+  font-size: clamp(13px, .95vw, 20px);
   color: var(--muted);
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  font-weight: 400;
 }
+.bt-by strong { color: var(--ink); font-weight: 600; }
 
-.bl-reason {
-  font-size: clamp(16px, 1.72vw, 36px);
-  line-height: 1.4;
+.bt-reason {
+  margin: 22px 0 0;
+  font-size: clamp(16px, 1.5vw, 32px);
+  line-height: 1.45;
   color: var(--ink);
   font-style: italic;
+  /* A single runaway reason must not push the meta line off the tile. */
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 7;
   -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.bl-site,
-.bl-when {
-  font-size: clamp(12px, .9vw, 18px);
+.bt-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: clamp(11px, .8vw, 16px);
   font-weight: 500;
   color: var(--faint);
-  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
-/* ── page controls ───────────────────────────────────────────────────────── */
+/* ── slide controls ──────────────────────────────────────────────────────── */
 .board-controls {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 16px;
-  padding: 14px 0 2px;
+  padding: 16px 0 2px;
 }
 .board-nav {
   width: 36px;
@@ -2765,8 +2751,8 @@ h3 { font-size: 15px; font-weight: 600; }
 .board-nav:hover { opacity: 1; border-color: var(--navy-300); }
 
 .board-dots { display: flex; align-items: center; gap: 9px; }
-/* Each dot is also the timer for its page: the fill sweeps across the current
-   one, so the board says how long it has left without a caption. */
+/* Each dot is also the timer for its slide: the fill sweeps across the
+   current one, so the board says how long it has left without a caption. */
 .board-dot {
   position: relative;
   width: 46px;
@@ -2801,52 +2787,25 @@ h3 { font-size: 15px; font-weight: 600; }
 }
 .board-show-state.paused { color: var(--brand-red); }
 
-/* ── mid-size panels ─────────────────────────────────────────────────────── */
-/* Between about 1100px and full HD the column minimums eat most of the width
-   and the reason — the part worth reading — is the one that ends up clipped.
-   Everything else gives some back. */
-@media (min-width: 1101px) and (max-width: 1500px) {
-  .board-list-head,
-  .board-row {
-    grid-template-columns:
-      minmax(196px, 1fr)
-      minmax(190px, .7fr)
-      minmax(128px, .7fr)
-      minmax(300px, 4fr)
-      minmax(74px, .45fr)
-      minmax(78px, .45fr);
-    gap: 14px;
-    padding-left: 18px;
-    padding-right: 18px;
-  }
-}
-
 /* ── narrower screens ────────────────────────────────────────────────────── */
-/* Below kiosk width this is somebody's laptop. Six columns will not fit, so
-   the row folds into two lines and the page is allowed to scroll rather than
-   clipping the bottom rows off with no way to reach them. */
+/* Below kiosk width this is somebody's laptop or phone, where three stacked
+   tiles are taller than the viewport. Let the page scroll rather than
+   clipping the third one off the bottom with no way to reach it. */
 @media (max-width: 1100px) {
   .board-show { overflow: visible; }
   .board-stage { padding: 16px 16px 8px; }
-  .board-list-head { display: none; }
-  .board-list-body { display: block; grid-template-rows: none; }
-  .board-row {
-    grid-template-columns: 1fr auto;
-    gap: 6px 14px;
-    padding: 14px 18px;
-  }
-  .bl-name { grid-column: 1; }
-  .bl-behaviour { grid-column: 2; grid-row: 1; justify-self: end; }
-  .bl-reason { grid-column: 1 / -1; -webkit-line-clamp: 3; }
-  .bl-giver, .bl-site, .bl-when { grid-column: auto; font-size: 12px; }
-  .bl-giver { grid-column: 1 / -1; }
-  .board-row-pad { display: none; }
+  .board-slide { grid-template-columns: 1fr; gap: 14px; }
+  .board-tile-pad { display: none; }
+  .board-tile { padding: 20px 22px 18px; }
+  .bt-name { margin-top: 12px; }
+  .bt-reason { margin-top: 14px; -webkit-line-clamp: 4; }
+  .bt-meta { margin-top: 14px; padding-top: 10px; }
 }
 
 /* A kiosk is a screen somebody has to sit near all day; honour the setting. */
 @media (prefers-reduced-motion: reduce) {
-  .board-row-flap { animation: none; }
-  .board-row-flap::after { animation: none; opacity: 0; }
+  .board-tile-flap { animation: none; }
+  .board-tile-flap::before { animation: none; opacity: 0; }
   .board-dot.active .board-dot-fill { animation: none; width: 100%; }
 }
 

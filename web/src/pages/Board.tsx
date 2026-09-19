@@ -1,22 +1,20 @@
 /**
  * / — login-free plant kiosk (FR-18), the CHAMP Wall of Recognition.
  *
- * Laid out as a DEPARTURE BOARD: one recognition per row under a fixed column
- * strip, three rows to a page, turning over every 15 s. A row list beats a card
- * grid here for the reason airports use one — the eye learns the columns once
- * and after that reads down a single column to find what it wants, instead of
- * re-parsing a layout in every tile.
+ * Laid out as TILES: three recognitions side by side, turning over every 15 s,
+ * each one flapping into place the way a departure board resolves a row.
  *
- * The flap animation is not decoration either. On a screen nobody is watching
- * continuously, the turnover is what tells a passer-by the board is live and
- * that the names just changed; a silent crossfade reads as a static poster.
+ * The flap is not decoration. On a screen nobody watches continuously, the
+ * turnover is what tells a passer-by the board is live and that the names just
+ * changed; a silent crossfade reads as a static poster.
+
  *
  * Two things a kiosk has to survive, which most of the code below is about:
  *
  *   · the feed reloading underneath the show. Every 20 s the poll returns a
  *     fresh list, and if the page index were left alone a new arrival would
- *     shunt everyone one place along mid-page. Pages are therefore keyed by
- *     the id of their first row, and after a reload the index is moved to
+ *     shunt everyone one place along mid-slide. Slides are therefore keyed by
+ *     the id of their first tile, and after a reload the index is moved to
  *     wherever that key landed — the viewer keeps reading the same three.
  *   · nobody being there to fix it. No buttons are required: the board turns
  *     over on its own, and the arrow keys, space and a click are there only
@@ -36,15 +34,15 @@ import { formatIstClock, timeAgo } from '../format'
 import type { FeedItem } from '../types'
 
 const REFRESH_MS = 20_000
-/** Rows to a page. Three is what keeps the type big enough to read from the
- *  far side of a floor; twelve items then make four pages. */
-const PER_PAGE = 3
-/** How long a page holds before it turns over. */
-const PAGE_MS = 15_000
+/** Tiles to a slide. Three is what keeps the type big enough to read from the
+ *  far side of a floor; twelve items then make four slides. */
+const PER_SLIDE = 3
+/** How long a slide holds before it turns over. */
+const SLIDE_MS = 15_000
 /** How long the board pauses after somebody touches it. */
 const RESUME_MS = 30_000
-/** Gap between one row flapping and the next — the cascade down the board. */
-const FLAP_STAGGER_MS = 80
+/** Gap between one tile flapping and the next — the cascade across the board. */
+const FLAP_STAGGER_MS = 130
 const LIMIT = 12
 
 function chunk<T>(list: T[], size: number): T[][] {
@@ -76,7 +74,7 @@ export default function Board(): React.ReactElement {
   const now = useNow(1000)
 
   const items = useMemo(() => feed.data ?? [], [feed.data])
-  const pages = useMemo(() => chunk(items, PER_PAGE), [items])
+  const pages = useMemo(() => chunk(items, PER_SLIDE), [items])
 
   const dateLabel = new Intl.DateTimeFormat('en-IN', {
     timeZone: 'Asia/Kolkata',
@@ -189,7 +187,7 @@ function DepartureBoard({ pages }: { pages: FeedItem[][] }): React.ReactElement 
   // full dwell rather than whatever was left of the previous page's timer.
   useEffect(() => {
     if (paused || count <= 1) return
-    const t = window.setTimeout(() => go(1), PAGE_MS)
+    const t = window.setTimeout(() => go(1), SLIDE_MS)
     return () => window.clearTimeout(t)
   }, [index, paused, count, go])
 
@@ -220,48 +218,41 @@ function DepartureBoard({ pages }: { pages: FeedItem[][] }): React.ReactElement 
 
   const page = pages[Math.min(index, count - 1)] ?? []
 
+  const slide = pages[Math.min(index, count - 1)] ?? []
+
   return (
     <main className="board-stage">
-      <div className="board-list" role="table" aria-label="Recent recognitions">
-        <div className="board-list-head" role="row">
-          <span role="columnheader">Recognised</span>
-          <span role="columnheader">Behaviour</span>
-          <span role="columnheader">By</span>
-          <span role="columnheader">What they did</span>
-          <span role="columnheader">Site</span>
-          <span role="columnheader">When</span>
-        </div>
-
-        {/* Re-keying on the page index is what makes the whole board flap:
-            every row is a new node, so its entry animation runs again. */}
-        <div className="board-list-body">
-          {page.map((item, i) => (
-            <BoardRow key={`${index}-${item.id}`} item={item} row={i} reduced={reduced} />
-          ))}
-          {Array.from({ length: PER_PAGE - page.length }, (_, k) => (
-            <div key={`pad-${k}`} className="board-row board-row-pad" aria-hidden />
-          ))}
-        </div>
+      {/* Re-keying on the slide index is what makes the board flap: every tile
+          is a new node, so its entry animation runs again. */}
+      <div className="board-slide">
+        {slide.map((item, i) => (
+          <BoardTile key={`${index}-${item.id}`} item={item} tile={i} reduced={reduced} />
+        ))}
+        {/* Holds the column open on a short final slide, so its tiles keep the
+            width they had on every other one. */}
+        {Array.from({ length: PER_SLIDE - slide.length }, (_, k) => (
+          <div key={`pad-${k}`} className="board-tile-pad" aria-hidden />
+        ))}
       </div>
 
       <div className="board-controls">
         <button
           type="button"
           className="board-nav"
-          aria-label="Previous page"
+          aria-label="Previous recognitions"
           onClick={() => { hold(); go(-1) }}
         >
           ‹
         </button>
 
-        <div className="board-dots" role="tablist" aria-label="Pages">
+        <div className="board-dots" role="tablist" aria-label="Slides">
           {pages.map((p, i) => (
             <button
               type="button"
               key={p[0]?.id ?? i}
               role="tab"
               aria-selected={i === index}
-              aria-label={`Page ${i + 1} of ${count}`}
+              aria-label={`Slide ${i + 1} of ${count}`}
               className={`board-dot${i === index ? ' active' : ''}`}
               onClick={() => { hold(); setIndex(i) }}
             >
@@ -269,7 +260,7 @@ function DepartureBoard({ pages }: { pages: FeedItem[][] }): React.ReactElement 
                 className="board-dot-fill"
                 style={
                   i === index && !paused && !reduced
-                    ? { animationDuration: `${PAGE_MS}ms` }
+                    ? { animationDuration: `${SLIDE_MS}ms` }
                     : { animation: 'none', width: i === index ? '100%' : '0%' }
                 }
               />
@@ -280,7 +271,7 @@ function DepartureBoard({ pages }: { pages: FeedItem[][] }): React.ReactElement 
         <button
           type="button"
           className="board-nav"
-          aria-label="Next page"
+          aria-label="Next recognitions"
           onClick={() => { hold(); go(1) }}
         >
           ›
@@ -295,49 +286,48 @@ function DepartureBoard({ pages }: { pages: FeedItem[][] }): React.ReactElement 
 }
 
 /**
- * One line of the board. The flap delay is handed to CSS as a custom property
- * so the cascade is a single declaration rather than six hand-written rules.
+ * One tile. The flap delay is handed to CSS as a custom property so the
+ * cascade across the board is a single declaration rather than three
+ * hand-written rules.
  */
-function BoardRow({
+function BoardTile({
   item,
-  row,
+  tile,
   reduced,
 }: {
   item: FeedItem
-  row: number
+  tile: number
   reduced: boolean
 }): React.ReactElement {
-  const delay = row * FLAP_STAGGER_MS
+  const delay = tile * FLAP_STAGGER_MS
   return (
-    <div
-      className={reduced ? 'board-row' : 'board-row board-row-flap'}
-      role="row"
-      style={{ ['--flap-delay' as string]: `${delay}ms` }}
+    <article
+      className={reduced ? 'board-tile' : 'board-tile board-tile-flap'}
+      style={{
+        ['--flap-delay' as string]: `${delay}ms`,
+        ['--behaviour' as string]: item.behaviour.colour,
+      }}
     >
-      <span className="bl-name" role="cell">
-        <SplitFlapText text={item.recipient.name} startDelay={delay + 180} reduced={reduced} />
+      <span className="bt-chip">
+        <span className="chip-dot" aria-hidden />
+        <span className="chip-label">{item.behaviour.name}</span>
       </span>
-      <span className="bl-behaviour" role="cell">
-        <span className="board-chip" style={{ borderColor: item.behaviour.colour }}>
-          <span className="chip-dot" style={{ background: item.behaviour.colour }} aria-hidden />
-          {/* Wrapped so a behaviour longer than the column can ellipsis rather
-              than being sliced off mid-word by the cell's overflow. */}
-          <span className="chip-label">{item.behaviour.name}</span>
-        </span>
-      </span>
-      <span className="bl-giver" role="cell">
-        {item.giver.name}
-      </span>
-      <span className="bl-reason" role="cell">
-        “{item.reason}”
-      </span>
-      <span className="bl-site" role="cell">
-        {item.recipient.site}
-      </span>
-      <span className="bl-when" role="cell">
-        {timeAgo(item.createdAt)}
-      </span>
-    </div>
+
+      <h2 className="bt-name">
+        <SplitFlapText text={item.recipient.name} startDelay={delay + 240} reduced={reduced} />
+      </h2>
+
+      <div className="bt-by">
+        recognised by <strong>{item.giver.name}</strong>
+      </div>
+
+      <p className="bt-reason">“{item.reason}”</p>
+
+      <div className="bt-meta">
+        <span>{item.recipient.site}</span>
+        <span>{timeAgo(item.createdAt)}</span>
+      </div>
+    </article>
   )
 }
 
