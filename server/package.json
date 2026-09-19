@@ -11,6 +11,7 @@
     "migrate": "node dist/db/migrate.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "mail:test": "tsx src/mail-test.ts",
+    "mail:preview": "tsx src/recognition-mail-preview.ts",
     "seed:reset": "tsx src/db/seed/reset.ts",
     "sync:darwinbox": "tsx src/modules/sync/runSync.ts"
   },

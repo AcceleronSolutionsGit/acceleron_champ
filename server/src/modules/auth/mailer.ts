@@ -1,5 +1,6 @@
 /**
- * Outbound email (OTP codes only, architecture §3.3).
+ * Outbound email (architecture §3.3): sign-in OTP codes, and the HTML
+ * recognition mail sent to a recipient with their reporting manager in Cc.
  *
  * Providers (EMAIL_PROVIDER):
  *   - 'console' — local default: pretty-prints the mail (incl. the OTP code)
@@ -112,6 +113,38 @@ function isTransient(err: unknown): boolean {
   return code === 'ETIMEDOUT' || code === 'ECONNRESET' || code === 'ESOCKET'
 }
 
+// ── message shape ─────────────────────────────────────────────
+/**
+ * Everything the providers below need to put one mail on the wire.
+ *
+ * `text` is not optional even when `html` is set: Outlook's reading pane, a
+ * watch, and every "plain text only" corporate policy fall back to it, and a
+ * recognition that arrives as an empty bubble is worse than no mail at all.
+ */
+export interface MailMessage {
+  to: string
+  cc?: string[]
+  bcc?: string[]
+  subject: string
+  text: string
+  /** Optional multipart/alternative HTML part. */
+  html?: string
+}
+
+/** Drop blanks/dupes and anyone already on another line of the envelope. */
+function cleanRecipients(list: string[] | undefined, exclude: string[]): string[] {
+  const seen = new Set(exclude.map((a) => a.trim().toLowerCase()).filter(Boolean))
+  const out: string[] = []
+  for (const raw of list ?? []) {
+    const addr = (raw ?? '').trim()
+    const key = addr.toLowerCase()
+    if (!addr || seen.has(key)) continue
+    seen.add(key)
+    out.push(addr)
+  }
+  return out
+}
+
 // ── PRODUCTION (real integration) ─────────────────────────────
 // Amazon SES — enabled by EMAIL_PROVIDER=ses after `npm i @aws-sdk/client-ses`
 // and verifying the sending domain (SPF + DKIM + DMARC; see
@@ -122,44 +155,73 @@ function isTransient(err: unknown): boolean {
 //
 // let sesClient: SESClient | null = null
 //
-// async function sendViaSes(to: string, subject: string, text: string): Promise<void> {
+// async function sendViaSes(msg: MailMessage): Promise<void> {
 //   if (!sesClient) sesClient = new SESClient({ region: process.env.AWS_REGION ?? 'ap-south-1' })
 //   await sesClient.send(
 //     new SendEmailCommand({
 //       Source: config.email.from,
-//       Destination: { ToAddresses: [to] },
+//       Destination: {
+//         ToAddresses: [msg.to],
+//         CcAddresses: msg.cc ?? [],
+//         BccAddresses: msg.bcc ?? [],
+//       },
 //       Message: {
-//         Subject: { Data: subject, Charset: 'UTF-8' },
-//         Body: { Text: { Data: text, Charset: 'UTF-8' } },
+//         Subject: { Data: msg.subject, Charset: 'UTF-8' },
+//         Body: {
+//           Text: { Data: msg.text, Charset: 'UTF-8' },
+//           ...(msg.html ? { Html: { Data: msg.html, Charset: 'UTF-8' } } : {}),
+//         },
 //       },
 //     }),
 //   )
 // }
 // ── LOCAL (stub) — active until the SES SDK is installed ─────
-function sendViaSes(_to: string, _subject: string, _text: string): Promise<void> {
+function sendViaSes(_msg: MailMessage): Promise<void> {
   throw new Error(
     'EMAIL_PROVIDER=ses requires @aws-sdk/client-ses — uncomment the SES block in ' +
       'server/src/modules/auth/mailer.ts and see deploy/README-deploy.md',
   )
 }
 
-/** Send a plain-text mail via the configured provider. */
-export async function sendMail(to: string, subject: string, text: string): Promise<void> {
+/**
+ * Send one mail — plain text, or multipart/alternative when `html` is set —
+ * through the configured provider.
+ *
+ * Cc and Bcc are normalized here rather than at each call site: the directory
+ * genuinely does produce a recipient who is their own manager's report, or a
+ * giver who is also the recipient's manager, and nobody should receive the
+ * same mail twice because of it.
+ */
+export async function sendMessage(msg: MailMessage): Promise<void> {
+  const cc = cleanRecipients(msg.cc, [msg.to])
+  const bcc = cleanRecipients(msg.bcc, [msg.to, ...cc])
+
   switch (config.email.provider) {
     case 'console': {
       const line = '─'.repeat(60)
       console.log(`\n┌${line}`)
       console.log(`│ ✉  [email:console]  (set EMAIL_PROVIDER=smtp for real mail)`)
-      console.log(`│ To:      ${to}`)
+      console.log(`│ To:      ${msg.to}`)
+      if (cc.length) console.log(`│ Cc:      ${cc.join(', ')}`)
+      if (bcc.length) console.log(`│ Bcc:     ${bcc.join(', ')}`)
       console.log(`│ From:    ${config.email.from}`)
-      console.log(`│ Subject: ${subject}`)
+      console.log(`│ Subject: ${msg.subject}`)
+      if (msg.html) console.log(`│ (HTML part: ${msg.html.length} bytes — text shown below)`)
       console.log(`├${line}`)
-      for (const l of text.split('\n')) console.log(`│ ${l}`)
+      for (const l of msg.text.split('\n')) console.log(`│ ${l}`)
       console.log(`└${line}\n`)
       return
     }
     case 'smtp': {
-      const message = { from: config.email.from, to, subject, text }
+      const message = {
+        from: config.email.from,
+        to: msg.to,
+        ...(cc.length ? { cc } : {}),
+        ...(bcc.length ? { bcc } : {}),
+        subject: msg.subject,
+        text: msg.text,
+        ...(msg.html ? { html: msg.html } : {}),
+      }
       try {
         await getSmtpTransporter().sendMail(message)
       } catch (err) {
@@ -177,10 +239,15 @@ export async function sendMail(to: string, subject: string, text: string): Promi
       return
     }
     case 'ses': {
-      await sendViaSes(to, subject, text)
+      await sendViaSes({ ...msg, cc, bcc })
       return
     }
   }
+}
+
+/** Send a plain-text mail via the configured provider. */
+export async function sendMail(to: string, subject: string, text: string): Promise<void> {
+  await sendMessage({ to, subject, text })
 }
 
 /** The one transactional mail this system sends: the login OTP. */

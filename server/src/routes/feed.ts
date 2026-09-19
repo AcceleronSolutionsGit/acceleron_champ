@@ -247,6 +247,7 @@ router.post(
 
     const { createRecognition } = await import('../modules/rules/recognitionService')
     const { notifyRecipient } = await import('../modules/notifications')
+    const { sendRecognitionMail } = await import('../modules/mail/recognitionMail')
 
     const result = await createRecognition({
       giverId,
@@ -277,6 +278,9 @@ router.post(
 
     // Deliver notification to recipient on WhatsApp
     await notifyRecipient(result.recognition)
+
+    // …and by mail: recipient in To, reporting manager + giver in Cc (FR-19).
+    await sendRecognitionMail(result.recognition)
 
     // Fetch joined row for immediate FeedItem response
     const db = getDb()

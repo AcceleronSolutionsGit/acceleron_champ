@@ -100,6 +100,18 @@ function buildConfig() {
       },
       /** Verify the SMTP connection at boot and log the result (non-fatal). */
       verifyOnBoot: bool(env.SMTP_VERIFY_ON_BOOT, true),
+      /**
+       * FR-19 (email arm) — the recognition mail to the recipient with their
+       * reporting manager in Cc. On by default: it is the arm of FR-19 that
+       * does not depend on a WhatsApp template being approved. Switch it off
+       * with RECOGNITION_EMAIL=false while a directory import is running and
+       * addresses are half-populated.
+       */
+      recognitionMail: {
+        enabled: bool(env.RECOGNITION_EMAIL, true),
+        /** Absolute URL of the web console; omitted ⇒ the mail has no button. */
+        consoleUrl: (env.CONSOLE_URL ?? '').replace(/\/+$/, ''),
+      },
     },
     whatsapp: {
       provider: (env.WHATSAPP_PROVIDER ?? 'simulator') as 'simulator' | 'meta' | 'gallabox',

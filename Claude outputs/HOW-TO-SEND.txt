@@ -1,0 +1,54 @@
+CHAMP GUIDE MAILS — HOW TO SEND
+════════════════════════════════════════════════════════════════════
+
+Three mails, one per audience. Send each to its own list.
+
+  1-all-employees.html        → everyone
+  2-managers.html             → anyone with direct reports
+  3-committee-admins.html     → R&R committee + admins
+
+The preview-*.png files show how each one looks, so you can check
+before sending.
+
+
+BEFORE YOU SEND — replace these four placeholders
+─────────────────────────────────────────────────
+  [CONSOLE URL]       e.g. acceleron-champ-server.vercel.app
+                      (use your custom domain if you have one)
+  [WHATSAPP NUMBER]   the CHAMP WhatsApp business number
+  [HR CONTACT]        who fixes directory / reporting-line problems
+  [R&R CONTACT]       who answers programme questions
+
+Easiest way: open the .html in Notepad, Ctrl+H, replace each one,
+save. Do that before the copy-paste step below.
+
+
+GETTING IT INTO OUTLOOK
+───────────────────────
+  1. Open the .html file in Chrome or Edge.
+  2. Ctrl+A, then Ctrl+C.
+  3. New mail in Outlook, click in the body, Ctrl+V.
+
+The screenshots are embedded in the file itself, so they travel with
+the paste — no separate attachments, and nothing to go missing when
+someone forwards it.
+
+Paste into the BODY, not as an attachment. If Outlook offers paste
+options, choose "Keep Source Formatting".
+
+
+SUBJECT LINES
+─────────────
+  1. CHAMP is live — recognise a colleague, and put your own work forward
+  2. CHAMP: you'll be approving your team's quarterly nominations
+  3. CHAMP console: nominations, moderation and programme settings
+
+
+NOTES
+─────
+· Built with tables and inline styles, which is what Outlook renders
+  reliably. Tested at 620px wide; it reflows on phones.
+· Every screenshot is the real application with the correct six CHAMP
+  behaviours, not a mockup.
+· Mail 1 is the longest because it covers both WhatsApp and the web.
+  If you want a shorter launch version, say so.

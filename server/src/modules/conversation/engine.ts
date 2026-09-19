@@ -17,6 +17,7 @@ import { Behaviour, BotReply, CreateRecognitionResult, Employee, InboundMessage 
 import { AppSettings, getSettings } from '../settings'
 import { createRecognition } from '../rules/recognitionService'
 import { notifyRecipient } from '../notifications'
+import { sendRecognitionMail } from '../mail/recognitionMail'
 import { recordInbound } from '../outbound'
 import { toE164 } from '../sync/darwinbox'
 import { Lang, normalizeLang, t } from './i18n'
@@ -419,6 +420,9 @@ async function submitReason(
       ),
     ]
     await notifyRecipient(result.recognition) // FR-19, in the recipient's language
+    // FR-19 (email arm) — recipient in To, their reporting manager and the
+    // giver in Cc. Swallows its own failures; never blocks the reply.
+    await sendRecognitionMail(result.recognition)
     return replies
   }
 
