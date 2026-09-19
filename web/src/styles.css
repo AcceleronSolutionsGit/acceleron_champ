@@ -2551,7 +2551,14 @@ h3 { font-size: 15px; font-weight: 600; }
    part actually worth walking over to read.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.board-show { overflow: hidden; }
+/* A definite height, not min-height: the flex children can only be told to
+   shrink into the space left over if the box they sit in has a fixed size.
+   With min-height the tiles keep their content height and quietly push the
+   footer off the bottom of the screen on a shorter panel. */
+.board-show {
+  height: 100vh;
+  overflow: hidden;
+}
 
 /* Visually hidden, still read aloud. The flap spans are aria-hidden while
    they riffle, so the settled name has to live somewhere for a screen
@@ -2580,8 +2587,12 @@ h3 { font-size: 15px; font-weight: 600; }
   flex: 1;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: 1fr;
   gap: 24px;
   min-height: 0;
+  /* Without an explicit single row, a tall tile grows the grid and shoves the
+     footer off the bottom of the screen. */
+  overflow: hidden;
   /* The flaps have to tumble towards the viewer, so the perspective belongs
      on the container the tiles share, not on each tile. */
   perspective: 1800px;
@@ -2598,6 +2609,7 @@ h3 { font-size: 15px; font-weight: 600; }
      tile with the meta line stranded at the bottom. */
   justify-content: center;
   min-height: 0;
+  overflow: hidden;
   padding: 30px 32px;
   background: #ffffff;
   border: 1px solid var(--line);
@@ -2650,21 +2662,21 @@ h3 { font-size: 15px; font-weight: 600; }
   gap: 8px;
   max-width: 100%;
   min-width: 0;
-  padding: 6px 15px;
-  border: 1px solid var(--behaviour, var(--navy-600));
+  padding: 8px 20px;
+  border: 2px solid var(--behaviour, var(--navy-600));
   border-radius: var(--radius-full);
   background: #ffffff;
   color: var(--behaviour, var(--navy-600));
   font-family: var(--font-heading);
-  font-size: clamp(11px, .72vw, 16px);
+  font-size: clamp(13px, 1.14vw, 24px);
   font-weight: 700;
   letter-spacing: .07em;
   text-transform: uppercase;
 }
 .bt-chip .chip-dot {
-  width: 8px;
-  height: 8px;
-  flex: 0 0 8px;
+  width: 11px;
+  height: 11px;
+  flex: 0 0 11px;
   border-radius: 50%;
   background: var(--behaviour, var(--navy-600));
 }
@@ -2677,11 +2689,12 @@ h3 { font-size: 15px; font-weight: 600; }
 }
 
 .bt-name {
-  margin: 18px 0 0;
+  margin: 20px 0 0;
   font-family: var(--font-heading);
-  font-size: clamp(22px, 1.95vw, 42px);
-  font-weight: 700;
-  line-height: 1.15;
+  font-size: clamp(28px, 3.2vw, 70px);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -.01em;
   color: var(--navy-600);
   /* Flap boards are monospaced because every character sits on one drum; the
      tabular figures keep the riffle from shuffling the name sideways. */
@@ -2691,38 +2704,48 @@ h3 { font-size: 15px; font-weight: 600; }
 .flap-rolling { color: var(--faint); }
 .flap-blank { color: transparent; }
 
+/* Read from across a floor, so the giver's name carries the weight and the
+   connecting words stay out of its way rather than matching it. */
 .bt-by {
-  margin-top: 7px;
-  font-size: clamp(13px, .95vw, 20px);
+  margin-top: 12px;
+  font-size: clamp(16px, 1.6vw, 34px);
+  line-height: 1.3;
   color: var(--muted);
   font-weight: 400;
 }
-.bt-by strong { color: var(--ink); font-weight: 600; }
+.bt-by strong { color: var(--ink); font-weight: 700; }
 
 .bt-reason {
-  margin: 22px 0 0;
-  font-size: clamp(16px, 1.5vw, 32px);
-  line-height: 1.45;
+  margin: 24px 0 0;
+  font-size: clamp(17px, 1.85vw, 39px);
+  line-height: 1.42;
   color: var(--ink);
   font-style: italic;
-  /* A single runaway reason must not push the meta line off the tile. */
+  /* The clamp is the last line of defence only; reasonSizeClass() above has
+     already stepped the size down so the text fits. */
   display: -webkit-box;
-  -webkit-line-clamp: 7;
+  -webkit-line-clamp: 11;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+/* Longer reasons step down rather than getting their ending cut off. */
+.bt-reason.is-long    { font-size: clamp(16px, 1.58vw, 33px); }
+.bt-reason.is-longer  { font-size: clamp(15px, 1.34vw, 28px); }
+.bt-reason.is-longest { font-size: clamp(14px, 1.12vw, 23px); line-height: 1.38; }
 
 .bt-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 20px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
-  font-size: clamp(11px, .8vw, 16px);
-  font-weight: 500;
-  color: var(--faint);
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 2px solid var(--line);
+  font-size: clamp(14px, 1.32vw, 27px);
+  font-weight: 600;
+  /* --faint disappears past a couple of metres; the site is what somebody
+     across the floor actually scans for. */
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2787,12 +2810,26 @@ h3 { font-size: 15px; font-weight: 600; }
 }
 .board-show-state.paused { color: var(--brand-red); }
 
+/* ── shorter panels ──────────────────────────────────────────────────────── */
+/* 768p and laptop screens. The type is what has to survive, so the spacing
+   pays for it. */
+@media (max-height: 860px) and (min-width: 1101px) {
+  .board-stage { padding: 14px 26px 8px; }
+  .board-slide { gap: 16px; }
+  .board-tile { padding: 20px 26px; }
+  .bt-name { margin-top: 12px; }
+  .bt-by { margin-top: 7px; }
+  .bt-reason { margin-top: 14px; }
+  .bt-meta { margin-top: 15px; padding-top: 12px; }
+  .board-controls { padding: 10px 0 0; }
+}
+
 /* ── narrower screens ────────────────────────────────────────────────────── */
 /* Below kiosk width this is somebody's laptop or phone, where three stacked
    tiles are taller than the viewport. Let the page scroll rather than
    clipping the third one off the bottom with no way to reach it. */
 @media (max-width: 1100px) {
-  .board-show { overflow: visible; }
+  .board-show { height: auto; min-height: 100vh; overflow: visible; }
   .board-stage { padding: 16px 16px 8px; }
   .board-slide { grid-template-columns: 1fr; gap: 14px; }
   .board-tile-pad { display: none; }

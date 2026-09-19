@@ -321,7 +321,7 @@ function BoardTile({
         recognised by <strong>{item.giver.name}</strong>
       </div>
 
-      <p className="bt-reason">“{item.reason}”</p>
+      <p className={`bt-reason${reasonSizeClass(item.reason)}`}>“{item.reason}”</p>
 
       <div className="bt-meta">
         <span>{item.recipient.site}</span>
@@ -336,6 +336,23 @@ const FLAP_GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
  *  without the name being illegible for long. */
 const FLAP_CYCLES = 3
 const FLAP_TICK_MS = 55
+/**
+ * Pick a type size for the reason from how long it is.
+ *
+ * The alternative — one size and a line clamp — trades away the end of the
+ * longest reasons, which are usually the ones worth reading. Stepping the
+ * size down instead means everything fits, and the tiles that CAN be huge
+ * still are. The thresholds are in characters because that is what the
+ * WhatsApp bot actually limits.
+ */
+function reasonSizeClass(reason: string): string {
+  const n = reason.trim().length
+  if (n <= 150) return ''
+  if (n <= 260) return ' is-long'
+  if (n <= 420) return ' is-longer'
+  return ' is-longest'
+}
+
 /** Blank flap filler — keeps the column width steady while a name lands. */
 const NBSP = '\u00A0'
 
