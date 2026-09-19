@@ -2543,21 +2543,27 @@ h3 { font-size: 15px; font-weight: 600; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Wall of Recognition — tiled slides (FR-18)
+   Wall of Recognition — editorial marquee (FR-18)
 
-   Three recognitions side by side, turning over every 15 s, each tile
-   flapping into place on a stagger. Sized for a wall-mounted panel rather
-   than a desk: the reason is the biggest type on the tile, because it is the
-   part actually worth walking over to read.
+   Three recognitions side by side, turning over every 15 s, each panel
+   flapping into place.
+
+   No cards, no shadows, no rounded corners: panels are full-height fields
+   separated by a hairline, so the eye has a hard edge to land on instead of
+   a soft one. That is what carries the board across a room — a floating card
+   on a near-white page dissolves under plant lighting however large the type
+   is, and the shadow reads as a smudge.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* A definite height, not min-height: the flex children can only be told to
-   shrink into the space left over if the box they sit in has a fixed size.
-   With min-height the tiles keep their content height and quietly push the
-   footer off the bottom of the screen on a shorter panel. */
 .board-show {
+  /* A definite height, not min-height: the flex children can only be told to
+     shrink into the space left over if the box they sit in has a fixed size.
+     With min-height the panels keep their content height and quietly push the
+     bar off the bottom of the screen on a shorter display. */
   height: 100vh;
   overflow: hidden;
+  background: #f2f4f7;
+  color: var(--ink);
 }
 
 /* Visually hidden, still read aloud. The flap spans are aria-hidden while
@@ -2575,12 +2581,46 @@ h3 { font-size: 15px; font-weight: 600; }
   border: 0;
 }
 
+/* ── header ──────────────────────────────────────────────────────────────── */
+.board-show .board-header {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: 2px solid var(--ink);
+  box-shadow: none;
+  padding: 24px 46px;
+  background: #ffffff;
+}
+.board-show .board-brand { color: var(--ink); font-size: clamp(17px, 1.3vw, 26px); }
+.board-show .board-brand-accent { color: var(--brand-red); font-size: 1.05em; }
+.board-show .board-brand-sub {
+  color: var(--muted);
+  font-size: clamp(11px, .72vw, 15px);
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+/* Big enough to read as a live clock rather than a caption — on a board with
+   no other moving parts between turnovers, it is the proof of life. */
+.board-show .board-time {
+  color: var(--ink);
+  font-size: clamp(26px, 2.3vw, 48px);
+  font-weight: 300;
+  letter-spacing: .04em;
+}
+.board-show .board-date {
+  color: var(--muted);
+  font-size: clamp(11px, .78vw, 16px);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  margin-top: 5px;
+}
+
+/* ── the slide ───────────────────────────────────────────────────────────── */
 .board-stage {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 24px 34px 14px;
 }
 
 .board-slide {
@@ -2588,41 +2628,46 @@ h3 { font-size: 15px; font-weight: 600; }
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: 1fr;
-  gap: 24px;
+  /* The gap IS the divider: a 1px gutter over the page ground draws a hairline
+     between panels without a border on either of them. */
+  gap: 1px;
+  background: #d8dde5;
   min-height: 0;
-  /* Without an explicit single row, a tall tile grows the grid and shoves the
-     footer off the bottom of the screen. */
+  /* Without an explicit single row, a tall panel grows the grid and shoves the
+     bar off the bottom of the screen. */
   overflow: hidden;
   /* The flaps have to tumble towards the viewer, so the perspective belongs
-     on the container the tiles share, not on each tile. */
-  perspective: 1800px;
+     on the container the panels share, not on each panel. */
+  perspective: 2000px;
 }
-.board-tile-pad { visibility: hidden; }
+.board-tile-pad { visibility: hidden; background: #ffffff; }
 
-/* ── the tile ────────────────────────────────────────────────────────────── */
+/* ── the panel ───────────────────────────────────────────────────────────── */
 .board-tile {
   position: relative;
   display: flex;
   flex-direction: column;
-  /* Centred, not stretched: a 16:9 panel is far taller than three short
-     reasons need, and a top-aligned block leaves a lake of white under every
-     tile with the meta line stranded at the bottom. */
-  justify-content: center;
   min-height: 0;
   overflow: hidden;
-  padding: 30px 32px;
+  padding: 44px 42px 38px;
   background: #ffffff;
-  border: 1px solid var(--line);
-  border-top: 7px solid var(--behaviour, var(--navy-600));
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
   /* The hinge a real flap turns on. */
   transform-origin: top center;
   backface-visibility: hidden;
 }
+/* The behaviour's colour, as a rule across the top of its panel. */
+.board-tile::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: var(--behaviour, var(--brand-red));
+}
 
 /* ── the flap ────────────────────────────────────────────────────────────── */
-/* Each tile drops from its hinge with a small overshoot, one after the next,
+/* Each panel drops from its hinge with a small overshoot, one after the next,
    so a turnover cascades across the board the way a flap bank does. */
 .board-tile-flap {
   animation: board-flap .62s cubic-bezier(.2, .8, .3, 1) both;
@@ -2639,10 +2684,10 @@ h3 { font-size: 15px; font-weight: 600; }
 .board-tile-flap::before {
   content: '';
   position: absolute;
-  inset: -7px -1px auto -1px;
-  height: 7px;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  background: rgba(255, 255, 255, .55);
+  inset: 0 0 auto 0;
+  height: 5px;
+  z-index: 1;
+  background: rgba(255, 255, 255, .9);
   opacity: 0;
   animation: board-seam .62s linear both;
   animation-delay: var(--flap-delay, 0ms);
@@ -2654,140 +2699,126 @@ h3 { font-size: 15px; font-weight: 600; }
   100% { opacity: 0; }
 }
 
-/* ── tile contents ───────────────────────────────────────────────────────── */
-.bt-chip {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 100%;
-  min-width: 0;
-  padding: 8px 20px;
-  border: 2px solid var(--behaviour, var(--navy-600));
-  border-radius: var(--radius-full);
-  background: #ffffff;
-  color: var(--behaviour, var(--navy-600));
+/* ── panel contents ──────────────────────────────────────────────────────── */
+/* The behaviour is a coloured line of text, not a pill: at this distance an
+   outlined chip just adds a shape to decode before the word inside it. */
+.bt-behaviour {
   font-family: var(--font-heading);
-  font-size: clamp(13px, 1.14vw, 24px);
+  font-size: clamp(12px, 1.06vw, 22px);
   font-weight: 700;
-  letter-spacing: .07em;
-  text-transform: uppercase;
-}
-.bt-chip .chip-dot {
-  width: 11px;
-  height: 11px;
-  flex: 0 0 11px;
-  border-radius: 50%;
-  background: var(--behaviour, var(--navy-600));
-}
-/* A behaviour longer than the tile ellipsises rather than being sliced off. */
-.bt-chip .chip-label {
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  letter-spacing: .2em;
+  color: var(--behaviour, var(--brand-red));
+  margin-bottom: clamp(16px, 2.6vh, 36px);
 }
 
 .bt-name {
-  margin: 20px 0 0;
+  margin: 0;
   font-family: var(--font-heading);
-  font-size: clamp(28px, 3.2vw, 70px);
-  font-weight: 800;
-  line-height: 1.08;
-  letter-spacing: -.01em;
-  color: var(--navy-600);
+  font-size: clamp(28px, 3.45vw, 72px);
+  font-weight: 900;
+  line-height: 1.02;
+  letter-spacing: -.022em;
+  color: var(--ink);
   /* Flap boards are monospaced because every character sits on one drum; the
      tabular figures keep the riffle from shuffling the name sideways. */
   font-variant-numeric: tabular-nums;
 }
-/* Mid-roll characters sit back a shade so the landed ones read as settled. */
-.flap-rolling { color: var(--faint); }
+/* Mid-roll characters sit back so the landed ones read as settled. */
+.flap-rolling { color: #c3cad6; }
 .flap-blank { color: transparent; }
 
-/* Read from across a floor, so the giver's name carries the weight and the
-   connecting words stay out of its way rather than matching it. */
 .bt-by {
-  margin-top: 12px;
-  font-size: clamp(16px, 1.6vw, 34px);
+  margin-top: clamp(10px, 1.4vh, 20px);
+  font-size: clamp(16px, 1.42vw, 29px);
   line-height: 1.3;
+  font-weight: 300;
   color: var(--muted);
-  font-weight: 400;
 }
-.bt-by strong { color: var(--ink); font-weight: 700; }
+.bt-by strong { color: var(--ink); font-weight: 500; }
 
 .bt-reason {
-  margin: 24px 0 0;
-  font-size: clamp(17px, 1.85vw, 39px);
-  line-height: 1.42;
-  color: var(--ink);
-  font-style: italic;
-  /* The clamp is the last line of defence only; reasonSizeClass() above has
-     already stepped the size down so the text fits. */
+  flex: 1;
+  margin: clamp(18px, 2.8vh, 40px) 0 0;
+  font-size: clamp(17px, 1.72vw, 36px);
+  line-height: 1.45;
+  font-weight: 300;
+  color: #23293a;
+  /* The clamp is the last line of defence only; reasonSizeClass() in the
+     component has already stepped the size down so the text fits. */
   display: -webkit-box;
   -webkit-line-clamp: 11;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 /* Longer reasons step down rather than getting their ending cut off. */
-.bt-reason.is-long    { font-size: clamp(16px, 1.58vw, 33px); }
-.bt-reason.is-longer  { font-size: clamp(15px, 1.34vw, 28px); }
-.bt-reason.is-longest { font-size: clamp(14px, 1.12vw, 23px); line-height: 1.38; }
+.bt-reason.is-long    { font-size: clamp(16px, 1.5vw, 32px); }
+.bt-reason.is-longer  { font-size: clamp(15px, 1.3vw, 27px); }
+.bt-reason.is-longest { font-size: clamp(14px, 1.1vw, 23px); line-height: 1.4; }
 
 .bt-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 24px;
-  padding-top: 18px;
-  border-top: 2px solid var(--line);
-  font-size: clamp(14px, 1.32vw, 27px);
-  font-weight: 600;
-  /* --faint disappears past a couple of metres; the site is what somebody
-     across the floor actually scans for. */
+  margin-top: clamp(16px, 2.2vh, 30px);
+  padding-top: clamp(14px, 1.8vh, 26px);
+  border-top: 1px solid var(--line);
+  font-size: clamp(13px, 1.16vw, 24px);
+  font-weight: 500;
+  letter-spacing: .09em;
+  text-transform: uppercase;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
-/* ── slide controls ──────────────────────────────────────────────────────── */
-.board-controls {
+/* ── bottom bar ──────────────────────────────────────────────────────────── */
+.board-bar {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 16px 0 2px;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 46px;
+  border-top: 2px solid var(--ink);
+  background: #ffffff;
 }
+.board-show .board-cta {
+  margin: 0;
+  font-size: clamp(13px, 1vw, 21px);
+  font-weight: 300;
+  color: var(--muted);
+}
+.board-show .board-cta strong { color: var(--ink); font-weight: 500; }
+
+.board-pager { display: flex; align-items: center; gap: 16px; }
 .board-nav {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--radius-full);
   border: 1px solid var(--line);
-  background: #ffffff;
+  background: transparent;
   color: var(--navy-600);
-  font-size: 21px;
+  font-size: 19px;
   line-height: 1;
   cursor: pointer;
-  opacity: .45;
-  transition: opacity var(--duration-fast) var(--ease-smooth),
-              border-color var(--duration-fast) var(--ease-smooth);
+  opacity: .5;
+  transition: opacity var(--duration-fast) var(--ease-smooth);
 }
-.board-nav:hover { opacity: 1; border-color: var(--navy-300); }
+.board-nav:hover { opacity: 1; }
 
-.board-dots { display: flex; align-items: center; gap: 9px; }
+.board-dots { display: flex; align-items: center; gap: 10px; }
 /* Each dot is also the timer for its slide: the fill sweeps across the
    current one, so the board says how long it has left without a caption. */
 .board-dot {
   position: relative;
-  width: 46px;
-  height: 5px;
+  width: 56px;
+  height: 4px;
   padding: 0;
   border: 0;
-  border-radius: var(--radius-full);
-  background: var(--navy-100);
+  border-radius: 2px;
+  background: #dce0e8;
   overflow: hidden;
   cursor: pointer;
 }
-.board-dot.active { background: var(--navy-200); }
 .board-dot-fill {
   position: absolute;
   inset: 0 auto 0 0;
@@ -2802,41 +2833,34 @@ h3 { font-size: 15px; font-weight: 600; }
 }
 
 .board-show-state {
-  min-width: 132px;
-  font-size: 12px;
+  min-width: 128px;
+  font-size: clamp(11px, .76vw, 15px);
   font-weight: 500;
+  letter-spacing: .1em;
+  text-transform: uppercase;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
 .board-show-state.paused { color: var(--brand-red); }
 
-/* ── shorter panels ──────────────────────────────────────────────────────── */
-/* 768p and laptop screens. The type is what has to survive, so the spacing
-   pays for it. */
-@media (max-height: 860px) and (min-width: 1101px) {
-  .board-stage { padding: 14px 26px 8px; }
-  .board-slide { gap: 16px; }
-  .board-tile { padding: 20px 26px; }
-  .bt-name { margin-top: 12px; }
-  .bt-by { margin-top: 7px; }
-  .bt-reason { margin-top: 14px; }
-  .bt-meta { margin-top: 15px; padding-top: 12px; }
-  .board-controls { padding: 10px 0 0; }
+.board-show .board-empty { color: var(--muted); }
+.board-show .board-footer {
+  background: #ffffff;
+  border-top: 2px solid var(--ink);
+  color: var(--muted);
 }
 
 /* ── narrower screens ────────────────────────────────────────────────────── */
 /* Below kiosk width this is somebody's laptop or phone, where three stacked
-   tiles are taller than the viewport. Let the page scroll rather than
+   panels are taller than the viewport. Let the page scroll rather than
    clipping the third one off the bottom with no way to reach it. */
 @media (max-width: 1100px) {
   .board-show { height: auto; min-height: 100vh; overflow: visible; }
-  .board-stage { padding: 16px 16px 8px; }
-  .board-slide { grid-template-columns: 1fr; gap: 14px; }
+  .board-show .board-header { padding: 16px 20px; }
+  .board-slide { grid-template-columns: 1fr; grid-template-rows: none; gap: 1px; }
   .board-tile-pad { display: none; }
-  .board-tile { padding: 20px 22px 18px; }
-  .bt-name { margin-top: 12px; }
-  .bt-reason { margin-top: 14px; -webkit-line-clamp: 4; }
-  .bt-meta { margin-top: 14px; padding-top: 10px; }
+  .board-tile { padding: 26px 22px 22px; }
+  .board-bar { flex-direction: column; align-items: flex-start; gap: 14px; padding: 18px 20px; }
 }
 
 /* A kiosk is a screen somebody has to sit near all day; honour the setting. */

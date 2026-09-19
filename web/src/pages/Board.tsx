@@ -1,8 +1,13 @@
 /**
  * / — login-free plant kiosk (FR-18), the CHAMP Wall of Recognition.
  *
- * Laid out as TILES: three recognitions side by side, turning over every 15 s,
- * each one flapping into place the way a departure board resolves a row.
+ * Laid out as an EDITORIAL MARQUEE: three recognitions side by side, turning
+ * over every 15 s, each panel flapping into place the way a departure board
+ * resolves a row.
+ *
+ * No cards — panels are full-height fields separated by a hairline, so the
+ * eye lands on a hard edge rather than a soft shadow. That, rather than point
+ * size, is what carries the board across a room.
  *
  * The flap is not decoration. On a screen nobody watches continuously, the
  * turnover is what tells a passer-by the board is live and that the names just
@@ -138,11 +143,20 @@ export default function Board(): React.ReactElement {
     )
   }
 
+  if (empty) {
+    return (
+      <div className="board board-show">
+        {header}
+        <main className="board-main">{empty}</main>
+        {footer}
+      </div>
+    )
+  }
+
   return (
     <div className="board board-show">
       {header}
-      {empty ? <main className="board-main">{empty}</main> : <DepartureBoard pages={pages} />}
-      {footer}
+      <DepartureBoard pages={pages} />
     </div>
   )
 }
@@ -235,7 +249,12 @@ function DepartureBoard({ pages }: { pages: FeedItem[][] }): React.ReactElement 
         ))}
       </div>
 
-      <div className="board-controls">
+      <footer className="board-bar">
+        <div className="board-cta">
+          Give recognition on WhatsApp — message <strong>Acceleron Champ</strong>
+        </div>
+
+        <div className="board-pager">
         <button
           type="button"
           className="board-nav"
@@ -280,7 +299,8 @@ function DepartureBoard({ pages }: { pages: FeedItem[][] }): React.ReactElement 
         <span className={`board-show-state${paused ? ' paused' : ''}`}>
           {paused ? 'Paused · press space to resume' : `${index + 1} / ${count}`}
         </span>
-      </div>
+        </div>
+      </footer>
     </main>
   )
 }
@@ -305,13 +325,10 @@ function BoardTile({
       className={reduced ? 'board-tile' : 'board-tile board-tile-flap'}
       style={{
         ['--flap-delay' as string]: `${delay}ms`,
-        ['--behaviour' as string]: item.behaviour.colour,
+        ['--behaviour' as string]: forBoardGround(item.behaviour.colour),
       }}
     >
-      <span className="bt-chip">
-        <span className="chip-dot" aria-hidden />
-        <span className="chip-label">{item.behaviour.name}</span>
-      </span>
+      <div className="bt-behaviour">{item.behaviour.name}</div>
 
       <h2 className="bt-name">
         <SplitFlapText text={item.recipient.name} startDelay={delay + 240} reduced={reduced} />
@@ -321,7 +338,9 @@ function BoardTile({
         recognised by <strong>{item.giver.name}</strong>
       </div>
 
-      <p className={`bt-reason${reasonSizeClass(item.reason)}`}>“{item.reason}”</p>
+      {/* Set as plain text, not a quotation: quote marks and italics are
+          noise at this size and cost a character's width on every line. */}
+      <p className={`bt-reason${reasonSizeClass(item.reason)}`}>{item.reason}</p>
 
       <div className="bt-meta">
         <span>{item.recipient.site}</span>
@@ -336,6 +355,38 @@ const FLAP_GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
  *  without the name being illegible for long. */
 const FLAP_CYCLES = 3
 const FLAP_TICK_MS = 55
+/**
+ * Sit a behaviour colour on a white ground without it going pale.
+ *
+ * The six CHAMP colours were picked for a chip on a screen you are a foot
+ * from: CUSTOMER CENTRICITY's amber (#e58f00) and CARING's green (#619c77)
+ * are close enough to white that as a line of text on a wall they turn into
+ * a smudge. Capping lightness keeps each colour itself — a deeper amber is
+ * still read as the amber one — without hand-maintaining a second palette
+ * that a behaviour rename in the admin console would silently break.
+ */
+function forBoardGround(hex: string): string {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec((hex ?? '').trim())
+  if (!m) return '#ffffff'
+  const [r, g, b] = [m[1], m[2], m[3]].map((h) => parseInt(h, 16) / 255)
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  const l = (max + min) / 2
+  const d = max - min
+  let h = 0
+  if (d !== 0) {
+    if (max === r) h = ((g - b) / d) % 6
+    else if (max === g) h = (b - r) / d + 2
+    else h = (r - g) / d + 4
+  }
+  h *= 60
+  if (h < 0) h += 360
+  const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1))
+  return `hsl(${Math.round(h)} ${Math.round(Math.max(sat, 0.45) * 100)}% ${Math.round(
+    Math.min(l, 0.38) * 100,
+  )}%)`
+}
+
 /**
  * Pick a type size for the reason from how long it is.
  *
