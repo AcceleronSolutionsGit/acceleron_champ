@@ -1,23 +1,29 @@
 /**
  * / — login-free plant kiosk (FR-18), the CHAMP Wall of Recognition.
  *
- * Runs as a SLIDESHOW: the newest recognitions are dealt into slides of three
- * and cycled every 8 s, so a TV on the shop floor shows a handful of names at
- * readable size rather than twelve cards nobody can read from ten feet away.
+ * Laid out as a DEPARTURE BOARD: one recognition per row under a fixed column
+ * strip, four rows to a page, turning over every 15 s. A row list beats a card
+ * grid here for the reason airports use one — the eye learns the columns once
+ * and after that reads down a single column to find what it wants, instead of
+ * re-parsing a layout in every tile.
  *
- * Two things a kiosk has to survive, which the code below is mostly about:
+ * The flap animation is not decoration either. On a screen nobody is watching
+ * continuously, the turnover is what tells a passer-by the board is live and
+ * that the names just changed; a silent crossfade reads as a static poster.
+ *
+ * Two things a kiosk has to survive, which most of the code below is about:
  *
  *   · the feed reloading underneath the show. Every 20 s the poll returns a
- *     fresh list, and if the slide index were left alone a new arrival would
- *     shunt everyone one place along mid-slide. Slides are therefore keyed by
- *     the id of their first card, and after a reload the index is moved to
- *     wherever that key landed — the viewer keeps reading the same three.
- *   · nobody being there to fix it. No buttons are required: the show runs on
- *     its own, and the arrow keys, space and a click are there only for the
- *     person who walks up to it.
+ *     fresh list, and if the page index were left alone a new arrival would
+ *     shunt everyone one place along mid-page. Pages are therefore keyed by
+ *     the id of their first row, and after a reload the index is moved to
+ *     wherever that key landed — the viewer keeps reading the same four.
+ *   · nobody being there to fix it. No buttons are required: the board turns
+ *     over on its own, and the arrow keys, space and a click are there only
+ *     for the person who walks up to it.
  *
- * The old twelve-up grid is still one query string away (?view=grid), so a
- * kiosk already pointed at this URL can be put back without a deploy.
+ * The old twelve-up card grid is still one query string away (?view=grid), so
+ * a kiosk already pointed at this URL can be put back without a deploy.
  *
  * Honours ?site= and (when the server has BOARD_TOKEN set) passes ?token=
  * straight through to the API.
@@ -30,18 +36,30 @@ import { formatIstClock, timeAgo } from '../format'
 import type { FeedItem } from '../types'
 
 const REFRESH_MS = 20_000
-/** Cards per slide. Three is what stays readable at kiosk distance. */
-const PER_SLIDE = 3
-/** How long a slide holds. Long enough for a two-line reason. */
-const SLIDE_MS = 8_000
-/** How long the show pauses after somebody touches it. */
+/** Rows to a page. Four is what keeps the type big enough to read from the
+ *  far side of a floor; twelve items then make three pages. */
+const PER_PAGE = 4
+/** How long a page holds before it turns over. */
+const PAGE_MS = 15_000
+/** How long the board pauses after somebody touches it. */
 const RESUME_MS = 30_000
+/** Gap between one row flapping and the next — the cascade down the board. */
+const FLAP_STAGGER_MS = 80
 const LIMIT = 12
 
 function chunk<T>(list: T[], size: number): T[][] {
   const out: T[][] = []
   for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size))
   return out
+}
+
+/** One shared answer for the whole page, read once per mount. */
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
 }
 
 export default function Board(): React.ReactElement {
@@ -58,7 +76,7 @@ export default function Board(): React.ReactElement {
   const now = useNow(1000)
 
   const items = useMemo(() => feed.data ?? [], [feed.data])
-  const slides = useMemo(() => chunk(items, PER_SLIDE), [items])
+  const pages = useMemo(() => chunk(items, PER_PAGE), [items])
 
   const dateLabel = new Intl.DateTimeFormat('en-IN', {
     timeZone: 'Asia/Kolkata',
@@ -125,35 +143,31 @@ export default function Board(): React.ReactElement {
   return (
     <div className="board board-show">
       {header}
-      {empty ? <main className="board-main">{empty}</main> : <Slideshow slides={slides} />}
+      {empty ? <main className="board-main">{empty}</main> : <DepartureBoard pages={pages} />}
       {footer}
     </div>
   )
 }
 
-/**
- * The show itself: one slide visible, the rest mounted but faded out so the
- * crossfade has something to fade to and the browser has already laid them
- * out (a kiosk browser reflowing three cards at the moment of transition is
- * exactly the stutter people notice on a big screen).
- */
-function Slideshow({ slides }: { slides: FeedItem[][] }): React.ReactElement {
+/** The board itself: a header strip, six rows, and the page controls. */
+function DepartureBoard({ pages }: { pages: FeedItem[][] }): React.ReactElement {
   const [index, setIndex] = useState(0)
   const [paused, setPaused] = useState(false)
-  const count = slides.length
+  const count = pages.length
+  const reduced = useMemo(prefersReducedMotion, [])
 
   // What the viewer is currently reading, so a reload can find it again.
   const anchorRef = useRef<number | null>(null)
   useEffect(() => {
-    anchorRef.current = slides[index]?.[0]?.id ?? null
-  }, [slides, index])
+    anchorRef.current = pages[index]?.[0]?.id ?? null
+  }, [pages, index])
 
   // A poll replaced the list: follow the anchor rather than the position.
   useEffect(() => {
     if (count === 0) return
     const anchor = anchorRef.current
     if (anchor !== null) {
-      const moved = slides.findIndex((slide) => slide.some((item) => item.id === anchor))
+      const moved = pages.findIndex((page) => page.some((item) => item.id === anchor))
       if (moved !== -1) {
         setIndex(moved)
         return
@@ -162,7 +176,7 @@ function Slideshow({ slides }: { slides: FeedItem[][] }): React.ReactElement {
     setIndex((i) => (i >= count ? 0 : i))
     // Only the shape of the list matters here; `index` deliberately absent.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slides, count])
+  }, [pages, count])
 
   const go = useCallback(
     (delta: number) => {
@@ -171,11 +185,11 @@ function Slideshow({ slides }: { slides: FeedItem[][] }): React.ReactElement {
     [count],
   )
 
-  // Auto-advance. Re-armed on every index change, so a manual step gets a full
-  // dwell rather than whatever was left of the previous slide's timer.
+  // Turnover timer. Re-armed on every index change, so a manual step gets a
+  // full dwell rather than whatever was left of the previous page's timer.
   useEffect(() => {
     if (paused || count <= 1) return
-    const t = window.setTimeout(() => go(1), SLIDE_MS)
+    const t = window.setTimeout(() => go(1), PAGE_MS)
     return () => window.clearTimeout(t)
   }, [index, paused, count, go])
 
@@ -204,53 +218,58 @@ function Slideshow({ slides }: { slides: FeedItem[][] }): React.ReactElement {
 
   if (count === 0) return <main className="board-main" />
 
+  const page = pages[Math.min(index, count - 1)] ?? []
+
   return (
     <main className="board-stage">
-      <div className="board-slides">
-        {slides.map((slide, i) => (
-          <div
-            key={slide[0]?.id ?? i}
-            className={`board-slide${i === index ? ' current' : ''}`}
-            aria-hidden={i !== index}
-          >
-            {slide.map((item) => (
-              <BoardCard key={item.id} item={item} big />
-            ))}
-            {/* Keep a short final slide the same shape as a full one, so the
-                cards do not grow when the last slide has one card on it. */}
-            {Array.from({ length: PER_SLIDE - slide.length }, (_, k) => (
-              <div key={`pad-${k}`} className="board-card-pad" aria-hidden />
-            ))}
-          </div>
-        ))}
+      <div className="board-list" role="table" aria-label="Recent recognitions">
+        <div className="board-list-head" role="row">
+          <span role="columnheader">Recognised</span>
+          <span role="columnheader">Behaviour</span>
+          <span role="columnheader">By</span>
+          <span role="columnheader">What they did</span>
+          <span role="columnheader">Site</span>
+          <span role="columnheader">When</span>
+        </div>
+
+        {/* Re-keying on the page index is what makes the whole board flap:
+            every row is a new node, so its entry animation runs again. */}
+        <div className="board-list-body">
+          {page.map((item, i) => (
+            <BoardRow key={`${index}-${item.id}`} item={item} row={i} reduced={reduced} />
+          ))}
+          {Array.from({ length: PER_PAGE - page.length }, (_, k) => (
+            <div key={`pad-${k}`} className="board-row board-row-pad" aria-hidden />
+          ))}
+        </div>
       </div>
 
       <div className="board-controls">
         <button
           type="button"
           className="board-nav"
-          aria-label="Previous recognitions"
+          aria-label="Previous page"
           onClick={() => { hold(); go(-1) }}
         >
           ‹
         </button>
 
-        <div className="board-dots" role="tablist" aria-label="Slides">
-          {slides.map((slide, i) => (
+        <div className="board-dots" role="tablist" aria-label="Pages">
+          {pages.map((p, i) => (
             <button
               type="button"
-              key={slide[0]?.id ?? i}
+              key={p[0]?.id ?? i}
               role="tab"
               aria-selected={i === index}
-              aria-label={`Slide ${i + 1} of ${count}`}
+              aria-label={`Page ${i + 1} of ${count}`}
               className={`board-dot${i === index ? ' active' : ''}`}
               onClick={() => { hold(); setIndex(i) }}
             >
               <span
                 className="board-dot-fill"
                 style={
-                  i === index && !paused
-                    ? { animationDuration: `${SLIDE_MS}ms` }
+                  i === index && !paused && !reduced
+                    ? { animationDuration: `${PAGE_MS}ms` }
                     : { animation: 'none', width: i === index ? '100%' : '0%' }
                 }
               />
@@ -261,7 +280,7 @@ function Slideshow({ slides }: { slides: FeedItem[][] }): React.ReactElement {
         <button
           type="button"
           className="board-nav"
-          aria-label="Next recognitions"
+          aria-label="Next page"
           onClick={() => { hold(); go(1) }}
         >
           ›
@@ -275,12 +294,139 @@ function Slideshow({ slides }: { slides: FeedItem[][] }): React.ReactElement {
   )
 }
 
-function BoardCard({ item, big = false }: { item: FeedItem; big?: boolean }): React.ReactElement {
+/**
+ * One line of the board. The flap delay is handed to CSS as a custom property
+ * so the cascade is a single declaration rather than six hand-written rules.
+ */
+function BoardRow({
+  item,
+  row,
+  reduced,
+}: {
+  item: FeedItem
+  row: number
+  reduced: boolean
+}): React.ReactElement {
+  const delay = row * FLAP_STAGGER_MS
   return (
-    <article
-      className={big ? 'board-card board-card-big' : 'board-card'}
-      style={{ borderLeftColor: item.behaviour.colour }}
+    <div
+      className={reduced ? 'board-row' : 'board-row board-row-flap'}
+      role="row"
+      style={{ ['--flap-delay' as string]: `${delay}ms` }}
     >
+      <span className="bl-name" role="cell">
+        <SplitFlapText text={item.recipient.name} startDelay={delay + 180} reduced={reduced} />
+      </span>
+      <span className="bl-behaviour" role="cell">
+        <span className="board-chip" style={{ borderColor: item.behaviour.colour }}>
+          <span className="chip-dot" style={{ background: item.behaviour.colour }} aria-hidden />
+          {/* Wrapped so a behaviour longer than the column can ellipsis rather
+              than being sliced off mid-word by the cell's overflow. */}
+          <span className="chip-label">{item.behaviour.name}</span>
+        </span>
+      </span>
+      <span className="bl-giver" role="cell">
+        {item.giver.name}
+      </span>
+      <span className="bl-reason" role="cell">
+        “{item.reason}”
+      </span>
+      <span className="bl-site" role="cell">
+        {item.recipient.site}
+      </span>
+      <span className="bl-when" role="cell">
+        {timeAgo(item.createdAt)}
+      </span>
+    </div>
+  )
+}
+
+const FLAP_GLYPHS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+/** Shuffles per character before it settles. Three is enough to read as motion
+ *  without the name being illegible for long. */
+const FLAP_CYCLES = 3
+const FLAP_TICK_MS = 55
+/** Blank flap filler — keeps the column width steady while a name lands. */
+const NBSP = '\u00A0'
+
+/**
+ * The split-flap effect, on the one field worth it: the name of the person
+ * being recognised. Letters riffle and settle left to right, the way a flap
+ * board resolves a destination.
+ *
+ * Deliberately one timer for the whole string rather than one per character —
+ * a kiosk box is usually the cheapest machine in the building, and six of
+ * these are on screen at once.
+ */
+function SplitFlapText({
+  text,
+  startDelay,
+  reduced,
+}: {
+  text: string
+  startDelay: number
+  reduced: boolean
+}): React.ReactElement {
+  const [frame, setFrame] = useState(-1)
+
+  useEffect(() => {
+    if (reduced) return
+    setFrame(-1)
+    const total = text.length * FLAP_CYCLES
+    let tick = 0
+    let interval = 0
+    const start = window.setTimeout(() => {
+      interval = window.setInterval(() => {
+        tick += 1
+        setFrame(tick)
+        if (tick > total) window.clearInterval(interval)
+      }, FLAP_TICK_MS)
+    }, startDelay)
+    return () => {
+      window.clearTimeout(start)
+      if (interval) window.clearInterval(interval)
+    }
+  }, [text, startDelay, reduced])
+
+  if (reduced) return <>{text}</>
+
+  const chars = text.split('')
+  // Everything left of the cursor has landed, the character at it is
+  // riffling, and everything right of it is still a blank flap.
+  const cursor = frame < 0 ? -1 : Math.floor(frame / FLAP_CYCLES)
+  if (cursor >= chars.length) return <>{text}</>
+
+  return (
+    <>
+      <span aria-hidden>
+        {chars.map((char, i) => {
+          if (i < cursor) return <span key={i}>{char}</span>
+          if (i === cursor && char !== ' ') {
+            const glyph = FLAP_GLYPHS[(frame * 7 + i * 13) % FLAP_GLYPHS.length]
+            return (
+              <span key={i} className="flap-rolling">
+                {glyph}
+              </span>
+            )
+          }
+          // Blank flap: a non-breaking space holds the column width steady so
+          // the name does not visibly grow as it resolves.
+          return (
+            <span key={i} className="flap-blank">
+              {NBSP}
+            </span>
+          )
+        })}
+      </span>
+      {/* The real name stays in the accessibility tree while the flaps roll. */}
+      <span className="sr-only">{text}</span>
+    </>
+  )
+}
+
+function BoardCard({ item }: { item: FeedItem }): React.ReactElement {
+  return (
+    <article className="board-card" style={{ borderLeftColor: item.behaviour.colour }}>
       <div className="board-who">
         {item.giver.name}
         <span className="board-arrow" aria-label="recognised">
