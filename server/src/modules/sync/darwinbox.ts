@@ -22,6 +22,10 @@ export interface DirectorySyncResult {
   deactivated: number
   unchanged?: number
   matched?: number
+  /** How many synced employees landed on a grade the ladder recognises. */
+  gradedOnLadder?: number
+  /** Grades seen that are NOT on the ladder, so a new rung is visible at once. */
+  unmappedGrades?: string[]
   message: string
 }
 
@@ -106,6 +110,66 @@ function isDbxActive(rec: DbxEmployee): boolean {
 }
 
 /**
+ * Where the seniority grade might live in the payload.
+ *
+ * The Employee Master API calls it job_level; the Report Builder reports this
+ * deployment actually uses name their columns in title case, and which one
+ * carries the grade depends on how the report was built. Trying the likely
+ * spellings beats hard-coding one and silently storing nothing — which is how
+ * every employee ended up on a default grade in the first place.
+ *
+ * DARWINBOX_GRADE_FIELD overrides the lot when the column is named something
+ * this list does not guess.
+ */
+const GRADE_FIELD_CANDIDATES = [
+  'job_level',
+  'Job Level',
+  'Job level',
+  'JobLevel',
+  'grade',
+  'Grade',
+  'Employee Grade',
+  'employee_grade',
+  'band',
+  'Band',
+  'Job Band',
+  'job_band',
+  'Designation Grade',
+  'Level',
+  'level',
+] as const
+
+/** Logged once per process so an unmapped report is visible without a redeploy. */
+let gradeSchemaLogged = false
+
+/**
+ * Pull the grade out of a record, whatever the report calls the column.
+ *
+ * When nothing matches, the record's column NAMES are logged once — names
+ * only, never values, because the payload is full of mobile numbers and
+ * personal emails and a sync log is not the place for them.
+ */
+function readGrade(rec: DbxEmployee): string {
+  const configured = config.darwinbox.gradeField.trim()
+  const keys = configured ? [configured, ...GRADE_FIELD_CANDIDATES] : GRADE_FIELD_CANDIDATES
+  for (const key of keys) {
+    const raw = (rec as Record<string, unknown>)[key]
+    if (raw !== undefined && raw !== null && String(raw).trim() !== '') {
+      return normalizeGrade(String(raw))
+    }
+  }
+  if (!gradeSchemaLogged) {
+    gradeSchemaLogged = true
+    console.warn(
+      '[darwinbox] no seniority grade found on this record. Columns present: ' +
+        Object.keys(rec).join(', ') +
+        '\n  → set DARWINBOX_GRADE_FIELD to the right one, or run `npm run dbx:fields -w server`.',
+    )
+  }
+  return ''
+}
+
+/**
  * Tidy an HRMS office location.
  *
  * DarwinBox's office_location repeats the city before the state — real values
@@ -148,7 +212,7 @@ function mapFields(rec: DbxEmployee, mobile: string, companyCode: string): Parti
    * peer-to-peer. Grades are stored verbatim now; modules/grades.ts owns the
    * question of what they mean.
    */
-  const grade = normalizeGrade(rec.job_level ?? rec['Job Level'])
+  const grade = readGrade(rec)
   const rawName = String(rec.full_name ?? rec['Full Name'] ?? 'Employee').trim()
   const rawDept = String(rec.function_name ?? rec['Parent Function Name'] ?? 'Unassigned').trim()
   const rawSubTeam = String(rec['Top Department'] ?? '').trim()
@@ -324,6 +388,11 @@ async function liveSync(db: Knex): Promise<DirectorySyncResult> {
   let matchedCompanyCount = 0
   const seenCodes = new Set<string>()
   const managerCodeByCode = new Map<string, string>() // for the second pass
+  // Grade coverage, reported back so a sync that quietly stored nothing is
+  // obvious from the admin console rather than only from the analytics weeks
+  // later.
+  let gradedOnLadder = 0
+  const unmappedGrades = new Set<string>()
 
   for (const rec of fetched) {
     const recCompany = getCompanyCode(rec)
@@ -352,6 +421,9 @@ async function liveSync(db: Knex): Promise<DirectorySyncResult> {
     if (managerCode) managerCodeByCode.set(code, managerCode)
 
     const fields = mapFields(rec, mobile, recCompany || targetCompany || '')
+    const syncedGrade = String(fields.level_grade ?? '')
+    if (isKnownGrade(syncedGrade)) gradedOnLadder += 1
+    else unmappedGrades.add(syncedGrade || '(blank)')
     try {
       const current = existingByCode.get(code)
       if (current) {
@@ -418,13 +490,26 @@ async function liveSync(db: Knex): Promise<DirectorySyncResult> {
   const filterNote = targetCompany ? ` (filtered by company code "${targetCompany}", matched ${matchedCompanyCount}/${fetched.length})` : ''
   const unchangedNote = unchanged > 0 ? `, ${unchanged} unchanged` : ''
   const skippedNote = skipped ? `, ${skipped} skipped (no usable mobile / conflict)` : ''
+  const seen = seenCodes.size
+  const gradeNote =
+    seen === 0
+      ? ''
+      : gradedOnLadder === 0
+        ? ` NO grades landed on the seniority ladder — the report's grade column is probably named something else; run "npm run dbx:fields -w server" and set DARWINBOX_GRADE_FIELD.`
+        : ` Grades on the ladder: ${gradedOnLadder}/${seen}.${
+            unmappedGrades.size > 0
+              ? ` Unmapped: ${[...unmappedGrades].sort().slice(0, 10).join(', ')}.`
+              : ''
+          }`
   return {
     mode: 'live',
     upserts,
     unchanged,
     matched: matchedCompanyCount,
     deactivated,
-    message: `DarwinBox sync complete: ${upserts} upserted${unchangedNote}, ${deactivated} deactivated${filterNote}${skippedNote}.`,
+    gradedOnLadder,
+    unmappedGrades: [...unmappedGrades].sort(),
+    message: `DarwinBox sync complete: ${upserts} upserted${unchangedNote}, ${deactivated} deactivated${filterNote}${skippedNote}.${gradeNote}`,
   }
 }
 

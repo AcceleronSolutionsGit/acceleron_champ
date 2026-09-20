@@ -140,6 +140,15 @@ function buildConfig() {
       datasetKey: env.DARWINBOX_DATASET_KEY ?? '',
       reportId: env.DARWINBOX_REPORT_ID ?? '',
       companyCode: env.DARWINBOX_COMPANY_CODE ?? 'ASPL',
+      /**
+       * Which column of the report carries the seniority grade.
+       *
+       * Left empty, the sync tries the usual DarwinBox spellings (see
+       * GRADE_FIELD_CANDIDATES) and logs the report's actual column names if
+       * none of them are present. Set this once you know the name — a report
+       * column rename should not need a deploy.
+       */
+      gradeField: env.DARWINBOX_GRADE_FIELD ?? '',
     },
     simulatorEnabled: bool(env.ENABLE_SIMULATOR, !isProd),
     boardToken: env.BOARD_TOKEN || null,
