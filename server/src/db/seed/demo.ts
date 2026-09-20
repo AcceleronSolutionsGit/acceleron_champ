@@ -1,17 +1,29 @@
 /**
- * Demo data seed.
+ * Demo data seed — a software company.
  *
  * Locally this stands in for the DarwinBox directory sync (which is disabled
- * without credentials — see modules/sync/darwinbox.ts): ~60 employees across
- * two sites, plus ~90 days of recognition history shaped to make every
- * analytics view meaningful — participation, function/shift equity, dark
- * spots (Paint Shop, Shift C), concentration (a few heavy givers), open
- * loop/burst flags and a couple of moderated removals.
+ * without credentials — see modules/sync/darwinbox.ts): ~60 people across two
+ * offices, on the real DarwinBox grade ladder (M2 → G1 → SRG1 → … → G5), plus
+ * ~90 days of recognition history shaped so every analytics view has something
+ * true to show:
+ *
+ *   · participation — most people give at least once, a long tail never does
+ *   · office and function equity — Bengaluru slightly quieter than Kolkata
+ *   · a dark spot — the IT Support squad, zero activity either way
+ *   · concentration — three heavy givers carry a visible share
+ *   · GRADE FLOW — deliberately lopsided: leads recognise their reports far
+ *     more often than juniors recognise upward, which is the pattern the
+ *     grade matrix exists to surface
+ *   · open loop/burst flags and two moderated removals
+ *
+ * There is no shift rotation here; everyone is on 'General'. The analytics
+ * split on office instead, which is the dimension a software org has.
  *
  * Deterministic PRNG ⇒ the same data every reseed.
  */
 import { Knex } from 'knex'
 import { config } from '../../config'
+import { Grade, gradeRank } from '../../modules/grades'
 import { DEFAULT_SETTINGS } from '../../modules/settings'
 import { nowIso } from '../time'
 
@@ -62,46 +74,46 @@ export const BEHAVIOUR_SEED = [
 
 const REASONS: Record<string, string[]> = {
   'IMPACT': [
-    'Stopped the line when a sling on Bay 3 looked frayed and had it swapped before the next lift',
-    'Caught a missing lockout tag at shift handover and fixed the isolation before work resumed',
-    'Walked a new fitter through the correct PPE for the grinding bay instead of letting it slide',
-    'Flagged an oil patch near the CNC aisle and stayed until it was cleaned and cordoned off',
-    'Refused to rush the hydraulic test under time pressure and insisted on the full checklist',
+    'Rewrote the nightly reconciliation job that had been timing out for a month — it now finishes in four minutes instead of failing at ninety',
+    'Tracked the checkout drop-off to a race condition in the payment callback and shipped the fix before the weekend peak',
+    'Cut the API p95 from 1.8s to 320ms by fixing the N+1 in the order history query nobody had profiled',
+    'Cleared the two-year-old flaky test suite so the pipeline is trustworthy again and nobody re-runs builds on a hunch',
+    'Migrated the last service off the deprecated auth library, which closed out the whole security finding',
   ],
   'INTEGRITY': [
-    'Re-measured the full weldment batch after one part came off-spec and saved a customer escape',
-    'Caught a wrong torque spec in the router before assembly started on Line 2',
-    'Reworked the fixture alignment until first-pass yield came back above target',
-    'Documented the paint defect pattern so the night shift could avoid the same rework',
-    'Held the dispatch until the inspection report matched the latest drawing revision',
+    'Flagged that our load test was hitting a cached path and the real numbers were nowhere near what the deck claimed',
+    'Owned up to the bad migration within minutes and had the rollback out before anyone noticed downstream',
+    'Pushed back on shipping the feature with the consent flow half-built rather than letting it go out quietly',
+    'Rewrote the estimate upward when the spike showed the integration was harder, instead of protecting the original date',
+    'Caught that the exported report included personal data the client had not asked for and stopped the send',
   ],
   'ENTREPRENEURSHIP': [
-    'Stayed back after shift to close the ERP work orders so month-end did not slip',
-    'Took over the vendor escalation nobody owned and drove it to a fix in two days',
-    'Volunteered to cover the stores counter during the audit week without being asked',
-    'Tracked the missing fasteners consignment personally and kept Line 1 running',
-    'Owned the 5S corner for the bay and had it audit-ready a week early',
+    'Picked up the stalled vendor SSO integration nobody owned and had it through UAT in nine days',
+    'Set up the on-call rota and the runbook without being asked, so the first production page had an answer waiting',
+    'Ran the client demo solo when the account lead was ill, and closed the follow-up questions the same day',
+    'Took the unglamorous logging cleanup to done, which is why last week\'s incident took twenty minutes to diagnose',
+    'Prototyped the usage dashboard over a slow week and it is now what the account reviews run on',
   ],
   'INNOVATION': [
-    'Built a simple jig from scrap that cut the panel drilling time nearly in half',
-    'Set up a shared tracker that replaced the whiteboard and stopped double bookings of the crane',
-    'Suggested reversing the assembly sequence which removed two forklift moves per unit',
-    'Wrote a small macro that auto-fills the daily production report from the shift log',
-    'Prototyped a guard modification that ended the recurring sensor false trips',
+    'Replaced the hand-written CSV parser with a streaming one, so the 400MB client imports stopped eating the container',
+    'Built the preview-environment-per-PR setup that has ended the "works on my branch" argument',
+    'Suggested caching the permission tree at the edge — one change took a third of the load off the identity service',
+    'Wrote the codemod that migrated 200 components in an afternoon instead of the sprint we had planned',
+    'Put together the small anomaly alert on signup volume that caught the bot traffic before billing did',
   ],
   'CARING': [
-    'Jumped in to help Fabrication clear the backlog even though the request came at 6 pm',
-    'Shared the test rig slots so both teams could hit the same deadline',
-    'Coached two new joiners on the CMM so Quality was not a bottleneck during trials',
-    'Coordinated with Stores and Maintenance to turn the breakdown around inside one shift',
-    'Translated the work instructions for the new contractual crew so nobody was left behind',
+    'Sat with the two new joiners through their first deploy instead of doing it for them',
+    'Rebalanced the sprint when a teammate had a family emergency, without anyone needing to ask',
+    'Reviewed every PR on the QA team\'s backlog over two days so their release was not blocked on us',
+    'Stayed on the call past midnight with the client\'s ops team and made sure our own engineer went to bed',
+    'Wrote the onboarding doc they wished they had had, and it is now the first thing new hires are sent',
   ],
   'CUSTOMER CENTRICITY': [
-    'Turned around the customer drawing clarification the same evening to protect the delivery date',
-    'Called out that the packaging spec would fail monsoon transit and got it changed in time',
-    'Prepared the extra inspection photos the customer asked for without being chased',
-    'Rescheduled the trial run so the customer team could witness it during their visit',
-    'Pushed for the field failure analysis to be shared with the customer within 48 hours',
+    'Rebuilt the despatch report after the client flagged the wrong line totals, and had it with them before their Monday review',
+    'Called out that the new export format would break the client\'s downstream macro, and shipped both formats',
+    'Turned around the integration clarification the same evening to protect the go-live date',
+    'Sat in on the client\'s own user testing and brought back three fixes nobody in the team had thought of',
+    'Rewrote the error messages in the client portal so their support desk stopped raising tickets to ask what they meant',
   ],
 }
 
@@ -110,32 +122,50 @@ const REASONS: Record<string, string[]> = {
 interface TeamSpec {
   site: string
   fn: string
-  subTeam: string
-  shifts: string[]
-  size: number // includes the L4 lead as the first member
+  squad: string
+  /** Includes the lead, who is the first member. */
+  size: number
+  leadGrade: Grade
+  /** The rest are drawn from here; repeat a grade to weight it. */
+  grades: Grade[]
   langs: Array<'en' | 'hi' | 'bn'>
 }
 
+/**
+ * Two offices. Kolkata is the delivery centre and where leadership sits;
+ * Bengaluru is the newer platform office — which is why it reads slightly
+ * quieter in the office-equity chart, the kind of gap the programme is
+ * supposed to catch early.
+ */
 const TEAMS: TeamSpec[] = [
-  // Panagarh Plant — manufacturing heavy, shift-based
-  { site: 'Panagarh Plant', fn: 'Manufacturing', subTeam: 'Assembly Line 1', shifts: ['A', 'B'], size: 5, langs: ['bn', 'bn', 'hi'] },
-  { site: 'Panagarh Plant', fn: 'Manufacturing', subTeam: 'Assembly Line 2', shifts: ['B', 'C'], size: 4, langs: ['bn', 'hi'] },
-  { site: 'Panagarh Plant', fn: 'Manufacturing', subTeam: 'Fabrication', shifts: ['A', 'B'], size: 5, langs: ['bn', 'hi'] },
-  { site: 'Panagarh Plant', fn: 'Manufacturing', subTeam: 'Paint Shop', shifts: ['A'], size: 3, langs: ['bn'] }, // dark spot — zero activity
-  { site: 'Panagarh Plant', fn: 'Manufacturing', subTeam: 'Quality Control', shifts: ['A', 'B'], size: 4, langs: ['bn', 'en'] },
-  { site: 'Panagarh Plant', fn: 'Manufacturing', subTeam: 'Maintenance', shifts: ['A', 'B', 'C'], size: 4, langs: ['hi', 'bn'] },
-  { site: 'Panagarh Plant', fn: 'Manufacturing', subTeam: 'Stores & Logistics', shifts: ['General'], size: 3, langs: ['bn', 'hi'] },
-  { site: 'Panagarh Plant', fn: 'Engineering', subTeam: 'Manufacturing Engineering', shifts: ['General'], size: 4, langs: ['en', 'bn'] },
-  { site: 'Panagarh Plant', fn: 'Support', subTeam: 'Plant HR', shifts: ['General'], size: 2, langs: ['en', 'bn'] },
-  { site: 'Panagarh Plant', fn: 'Support', subTeam: 'EHS', shifts: ['General'], size: 2, langs: ['en', 'hi'] },
-  // Kolkata — engineering & support, general shift
-  { site: 'Kolkata', fn: 'Engineering', subTeam: 'Design – Structures', shifts: ['General'], size: 5, langs: ['en', 'bn'] },
-  { site: 'Kolkata', fn: 'Engineering', subTeam: 'Design – Powertrain', shifts: ['General'], size: 4, langs: ['en'] },
-  { site: 'Kolkata', fn: 'Engineering', subTeam: 'Embedded & Controls', shifts: ['General'], size: 4, langs: ['en'] },
-  { site: 'Kolkata', fn: 'Engineering', subTeam: 'Testing & Validation', shifts: ['General'], size: 4, langs: ['en', 'bn'] },
-  { site: 'Kolkata', fn: 'Support', subTeam: 'Finance', shifts: ['General'], size: 2, langs: ['en'] },
-  { site: 'Kolkata', fn: 'Support', subTeam: 'IT', shifts: ['General'], size: 2, langs: ['en'] },
-  { site: 'Kolkata', fn: 'Support', subTeam: 'Procurement', shifts: ['General'], size: 2, langs: ['en', 'hi'] },
+  // ── Kolkata ───────────────────────────────────────────────────────────────
+  { site: 'Kolkata', fn: 'Engineering', squad: 'Payments Squad', size: 6,
+    leadGrade: 'SRG3', grades: ['G1', 'SRG1', 'G2', 'SRG2', 'G2'], langs: ['en', 'bn'] },
+  { site: 'Kolkata', fn: 'Engineering', squad: 'Identity Squad', size: 5,
+    leadGrade: 'G3', grades: ['G1', 'SRG1', 'G2', 'SRG2'], langs: ['en', 'bn'] },
+  { site: 'Kolkata', fn: 'Engineering', squad: 'Client Portal Squad', size: 5,
+    leadGrade: 'G3', grades: ['M2', 'G1', 'SRG1', 'G2'], langs: ['en', 'bn', 'hi'] },
+  { site: 'Kolkata', fn: 'Quality Engineering', squad: 'QA & Automation', size: 4,
+    leadGrade: 'SRG2', grades: ['G1', 'SRG1', 'G2'], langs: ['en', 'bn'] },
+  { site: 'Kolkata', fn: 'Product', squad: 'Product Management', size: 3,
+    leadGrade: 'SRG3', grades: ['G2', 'SRG2'], langs: ['en'] },
+  { site: 'Kolkata', fn: 'Design', squad: 'Product Design', size: 3,
+    leadGrade: 'G3', grades: ['SRG1', 'G2'], langs: ['en'] },
+  { site: 'Kolkata', fn: 'People', squad: 'People & Talent', size: 3,
+    leadGrade: 'G3', grades: ['G1', 'SRG1'], langs: ['en', 'bn'] },
+  { site: 'Kolkata', fn: 'Support', squad: 'IT Support', size: 3,
+    leadGrade: 'SRG1', grades: ['M2', 'G1'], langs: ['en', 'hi'] }, // dark spot — zero activity
+  // ── Bengaluru ─────────────────────────────────────────────────────────────
+  { site: 'Bengaluru', fn: 'Engineering', squad: 'Platform Squad', size: 5,
+    leadGrade: 'SRG3', grades: ['SRG1', 'G2', 'SRG2', 'G2'], langs: ['en'] },
+  { site: 'Bengaluru', fn: 'Engineering', squad: 'Mobile Squad', size: 4,
+    leadGrade: 'G3', grades: ['G1', 'SRG1', 'G2'], langs: ['en'] },
+  { site: 'Bengaluru', fn: 'DevOps', squad: 'Infrastructure & SRE', size: 4,
+    leadGrade: 'SRG2', grades: ['SRG1', 'G2', 'G2'], langs: ['en', 'hi'] },
+  { site: 'Bengaluru', fn: 'Data', squad: 'Data & Analytics', size: 4,
+    leadGrade: 'G3', grades: ['G1', 'SRG1', 'G2'], langs: ['en'] },
+  { site: 'Bengaluru', fn: 'Sales', squad: 'Client Partnerships', size: 3,
+    leadGrade: 'SRG3', grades: ['G2', 'SRG2'], langs: ['en', 'hi'] },
 ]
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -210,7 +240,7 @@ async function generate(db: Knex): Promise<Record<string, number>> {
     return `Employee ${seq}`
   }
 
-  const defaultDomain = config.auth.allowedEmailDomains[0] ?? 'gainwellengineering.com'
+  const defaultDomain = config.auth.allowedEmailDomains[0] ?? 'acceleronsolutions.io'
   const emailFor = (name: string): string => {
     let base = name.toLowerCase().replace(/[^a-z ]/g, '').trim().replace(/ +/g, '.')
     let email = `${base}@${defaultDomain}`
@@ -238,7 +268,7 @@ async function generate(db: Knex): Promise<Record<string, number>> {
     const mobile = e.mobile ?? `+91${9810000000 + seq}`
     const contractual = e.employmentType === 'contractual'
     const id = await insertReturningId(db, 'employees', {
-      employee_code: `GEPL${1000 + seq}`,
+      employee_code: `ASPL${1000 + seq}`,
       name: e.name,
       function: e.fn,
       sub_team: e.subTeam,
@@ -260,45 +290,47 @@ async function generate(db: Knex): Promise<Record<string, number>> {
     return emp
   }
 
-  // Site heads (L5)
-  const plantHead = await addEmployee({
-    name: nextName(), fn: 'Manufacturing', subTeam: 'Plant Leadership', shift: 'General',
-    site: 'Panagarh Plant', level: 'L5', managerId: null, email: emailFor('plant.head'), language: 'en',
+  // Leadership — the top two rungs of the ladder.
+  const cto = await addEmployee({
+    name: nextName(), fn: 'Engineering', subTeam: 'Technology Leadership', shift: 'General',
+    site: 'Kolkata', level: 'G5', managerId: null, email: emailFor('cto'), language: 'en',
   })
-  const engHead = await addEmployee({
-    name: nextName(), fn: 'Engineering', subTeam: 'Engineering Office', shift: 'General',
-    site: 'Kolkata', level: 'L5', managerId: null, email: emailFor('engineering.head'), language: 'en',
+  const deliveryHead = await addEmployee({
+    name: nextName(), fn: 'Engineering', subTeam: 'Delivery Leadership', shift: 'General',
+    site: 'Bengaluru', level: 'SRG4', managerId: cto.id, email: emailFor('delivery.head'), language: 'en',
   })
 
   // Named console users (match default ADMIN_EMAILS / COMMITTEE_EMAILS)
   await addEmployee({
-    name: 'Riya Sen', fn: 'Support', subTeam: 'HR', shift: 'General', site: 'Kolkata',
-    level: 'L3', managerId: engHead.id, email: `hr.admin@${defaultDomain}`, language: 'en',
+    name: 'Riya Sen', fn: 'People', subTeam: 'People & Talent', shift: 'General', site: 'Kolkata',
+    level: 'G3', managerId: cto.id, email: `hr.admin@${defaultDomain}`, language: 'en',
   })
   await addEmployee({
-    name: 'Arindam Bose', fn: 'Support', subTeam: 'HR', shift: 'General', site: 'Kolkata',
-    level: 'L4', managerId: engHead.id, email: `rnr.committee@${defaultDomain}`, language: 'en',
+    name: 'Arindam Bose', fn: 'People', subTeam: 'People & Talent', shift: 'General', site: 'Kolkata',
+    level: 'G4', managerId: cto.id, email: `rnr.committee@${defaultDomain}`, language: 'en',
   })
   await addEmployee({
     name: 'Sabarnik Lahiri', fn: 'Management', subTeam: 'Executive', shift: 'General', site: 'Kolkata',
-    level: 'L5', managerId: null, email: 'sabarnik.lahiri@acceleronsolutions.io', mobile: '+919875445704', language: 'en',
+    level: 'G5', managerId: null, email: 'sabarnik.lahiri@acceleronsolutions.io', mobile: '+919875445704', language: 'en',
   })
 
   for (const team of TEAMS) {
-    const head = team.site === 'Panagarh Plant' ? plantHead : engHead
+    const head = team.site === 'Kolkata' ? cto : deliveryHead
     let lead: SeededEmployee | null = null
     for (let i = 0; i < team.size; i++) {
       const isLead = i === 0
-      const level = isLead ? 'L4' : pick(['L1', 'L2', 'L2', 'L3'])
-      const isOperator = team.fn === 'Manufacturing' && !isLead
-      const contractual = isOperator && rnd() < 0.3
-      const hasEmail = !isOperator || rnd() < 0.4
+      const level = isLead ? team.leadGrade : pick(team.grades)
+      // Contractors sit on the same ladder but are a small minority, and a
+      // few have no company mailbox — which is why the WhatsApp number, not
+      // the email, is the identity this programme runs on (FR-2).
+      const contractual = !isLead && rnd() < 0.12
+      const hasEmail = !contractual || rnd() < 0.5
       const name = nextName()
       const emp = await addEmployee({
         name,
         fn: team.fn,
-        subTeam: team.subTeam,
-        shift: isLead ? team.shifts[0] : pick(team.shifts),
+        subTeam: team.squad,
+        shift: 'General',
         site: team.site,
         level,
         managerId: isLead ? head.id : lead!.id,
@@ -323,22 +355,45 @@ async function generate(db: Knex): Promise<Record<string, number>> {
 
   // ── Recognition history ────────────────────────────────────────────────────
   const behaviourNames = Object.keys(behaviourIds)
-  const isDarkSpot = (e: SeededEmployee) => e.subTeam === 'Paint Shop'
+  const isDarkSpot = (e: SeededEmployee) => e.subTeam === 'IT Support'
   const leaverIds = new Set(leavers.map((l) => l.id))
   const pool = employees.filter((e) => !isDarkSpot(e) && !leaverIds.has(e.id))
 
   // concentration: three champions give a lot
-  const champions = [pool[4], pool[12], pool[30]].filter(Boolean)
+  const champions = [pool[4], pool[12], pool[30]].filter(
+    (e) => e && (gradeRank(e.level) ?? 0) <= 5,
+  )
   const championIds = new Set(champions.map((c) => c.id))
 
-  const weightOf = (e: SeededEmployee): number => {
+  /**
+   * How likely someone is to be picked as the GIVER.
+   *
+   * The grade term is the point of the demo: senior people recognise far more
+   * often than juniors do, so the grade matrix comes out visibly lopsided
+   * towards downward flow — which is the real-world pattern the committee is
+   * meant to notice and act on, not an artefact.
+   */
+  const giverWeightOf = (e: SeededEmployee): number => {
     let w = 1
-    if (championIds.has(e.id)) w *= 8
-    if (e.shift === 'C') w *= 0.3 // shift equity dark-ish spot
-    if (e.fn === 'Support') w *= 0.8
+    if (championIds.has(e.id)) w *= 5
+    const tier = gradeRank(e.level) ?? 3
+    w *= 0.72 + tier * 0.12 // M2 ≈ 0.84 … G5 ≈ 1.92
+    if (e.site === 'Bengaluru') w *= 0.75 // newer office, quieter so far
     return w
   }
-  const weighted = (list: SeededEmployee[]): SeededEmployee => {
+
+  /** Recipients skew the other way — juniors receive more than they give. */
+  const recipientWeightOf = (e: SeededEmployee): number => {
+    let w = 1
+    const tier = gradeRank(e.level) ?? 3
+    w *= 1.55 - tier * 0.075 // M2 ≈ 1.48 … G5 ≈ 0.8
+    if (e.site === 'Bengaluru') w *= 0.85
+    return w
+  }
+  const weighted = (
+    list: SeededEmployee[],
+    weightOf: (e: SeededEmployee) => number = giverWeightOf,
+  ): SeededEmployee => {
     const total = list.reduce((s, e) => s + weightOf(e), 0)
     let r = rnd() * total
     for (const e of list) {
@@ -348,10 +403,13 @@ async function generate(db: Knex): Promise<Record<string, number>> {
     return list[list.length - 1]
   }
 
+  // Engineers reach for IMPACT and INNOVATION; the client-facing and people
+  // functions reach for CARING and CUSTOMER CENTRICITY. Gives the behaviour
+  // breakdown a shape that is worth reading rather than a flat six-way split.
   const behaviourWeights = (giver: SeededEmployee): [string, number][] =>
-    giver.fn === 'Manufacturing'
-      ? [['IMPACT', 0.30], ['INTEGRITY', 0.20], ['ENTREPRENEURSHIP', 0.15], ['INNOVATION', 0.07], ['CARING', 0.16], ['CUSTOMER CENTRICITY', 0.12]]
-      : [['IMPACT', 0.08], ['INTEGRITY', 0.22], ['ENTREPRENEURSHIP', 0.20], ['INNOVATION', 0.15], ['CARING', 0.22], ['CUSTOMER CENTRICITY', 0.13]]
+    giver.fn === 'Engineering' || giver.fn === 'DevOps' || giver.fn === 'Data'
+      ? [['IMPACT', 0.28], ['INNOVATION', 0.22], ['INTEGRITY', 0.16], ['ENTREPRENEURSHIP', 0.14], ['CARING', 0.12], ['CUSTOMER CENTRICITY', 0.08]]
+      : [['IMPACT', 0.10], ['INNOVATION', 0.10], ['INTEGRITY', 0.18], ['ENTREPRENEURSHIP', 0.18], ['CARING', 0.22], ['CUSTOMER CENTRICITY', 0.22]]
 
   const pickBehaviour = (giver: SeededEmployee): string => {
     const weights = behaviourWeights(giver)
@@ -374,13 +432,25 @@ async function generate(db: Knex): Promise<Record<string, number>> {
   let guard = 0
   while (rows.length < TARGET && guard++ < TARGET * 30) {
     const giver = weighted(pool)
-    // 15% deliberately cross-function to feed the direction-mix analytics
+    /**
+     * People recognise who they work with. Picking uniformly across a 55-
+     * person directory produced 80% cross-function recognition, which is not
+     * a company — it is a random graph. Weighted the way a real week looks:
+     * mostly your own squad, then your own function, then anyone.
+     */
+    const roll = rnd()
+    const notSelf = (e: SeededEmployee) => e.id !== giver.id
+    const sameSquad = pool.filter((e) => notSelf(e) && e.subTeam === giver.subTeam)
+    const sameFn = pool.filter((e) => notSelf(e) && e.fn === giver.fn && e.subTeam !== giver.subTeam)
+    const anyone = pool.filter(notSelf)
     const candidates =
-      rnd() < 0.15
-        ? pool.filter((e) => e.fn !== giver.fn && e.id !== giver.id)
-        : pool.filter((e) => e.id !== giver.id && (rnd() < 0.7 ? e.site === giver.site : true))
+      roll < 0.5 && sameSquad.length
+        ? sameSquad
+        : roll < 0.75 && sameFn.length
+          ? sameFn
+          : anyone
     if (!candidates.length) continue
-    const recipient = weighted(candidates)
+    const recipient = weighted(candidates, recipientWeightOf)
     if (recipient.id === giver.id) continue
     const createdAt = randomWorkInstant(rnd, 90)
     const monthKey = `${giver.id}-${recipient.id}-${createdAt.slice(0, 7)}`
@@ -399,18 +469,18 @@ async function generate(db: Knex): Promise<Record<string, number>> {
   }
 
   // Crafted moderation demos ---------------------------------------------------
-  const maintenance = pool.filter((e) => e.subTeam === 'Maintenance')
-  const fabrication = pool.filter((e) => e.subTeam === 'Fabrication')
-  const adminEmail = config.auth.adminEmails[0] ?? 'hr.admin@gainwellengineering.com'
+  const loopSquad = pool.filter((e) => e.subTeam === 'Identity Squad')
+  const burstSquad = pool.filter((e) => e.subTeam === 'Platform Squad')
+  const adminEmail = config.auth.adminEmails[0] ?? `hr.admin@${defaultDomain}`
 
   // (a) open reciprocal loop: M1↔M2, 4 recognitions inside 36 hours, ~5 days ago
   const loopBase = Date.now() - 5 * DAY
-  const [m1, m2] = [maintenance[0], maintenance[1]]
+  const [m1, m2] = [loopSquad[0], loopSquad[1]]
   const loopRows = [0, 1, 2, 3].map((i) => ({
     giver_id: i % 2 === 0 ? m1.id : m2.id,
     recipient_id: i % 2 === 0 ? m2.id : m1.id,
-    behaviour_id: behaviourIds['Collaboration'],
-    reason_text: pick(REASONS['Collaboration']),
+    behaviour_id: behaviourIds['CARING'],
+    reason_text: pick(REASONS['CARING']),
     channel: 'whatsapp',
     status: i >= 2 ? 'flagged' : 'active',
     created_at: new Date(loopBase + i * 9 * 60 * 60 * 1000).toISOString(),
@@ -418,14 +488,14 @@ async function generate(db: Knex): Promise<Record<string, number>> {
   rows.push(...loopRows)
 
   // (b) burst: one giver, 6 recognitions in ~45 minutes, ~8 days ago
-  const burstGiver = fabrication[0]
+  const burstGiver = burstSquad[0]
   const burstBase = Date.now() - 8 * DAY
   const burstTargets = pool.filter((e) => e.id !== burstGiver.id).slice(0, 6)
   const burstRows = burstTargets.map((t, i) => ({
     giver_id: burstGiver.id,
     recipient_id: t.id,
-    behaviour_id: behaviourIds['Ownership'],
-    reason_text: pick(REASONS['Ownership']),
+    behaviour_id: behaviourIds['ENTREPRENEURSHIP'],
+    reason_text: pick(REASONS['ENTREPRENEURSHIP']),
     channel: 'whatsapp',
     status: i === 5 ? 'flagged' : 'active',
     created_at: new Date(burstBase + i * 8 * 60 * 1000).toISOString(),
@@ -440,8 +510,8 @@ async function generate(db: Knex): Promise<Record<string, number>> {
     rows.push({
       giver_id: giver.id,
       recipient_id: recipient.id,
-      behaviour_id: behaviourIds['Quality'],
-      reason_text: 'Duplicate of an earlier entry for the same inspection catch',
+      behaviour_id: behaviourIds['INTEGRITY'],
+      reason_text: 'Duplicate of an earlier entry for the same release fix',
       channel: 'whatsapp',
       status: 'removed',
       removal_reason: 'Duplicate entry — same event recorded twice',

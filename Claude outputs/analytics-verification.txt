@@ -1,0 +1,20 @@
+DIRECTION: {"total":240,"ranked":240,"unknownGrade":0,"juniorToSenior":79,"seniorToJunior":109,"peer":52,"crossFunction":71,"sameFunction":169,"unmappedGrades":[]}
+CHECK matrix sum === ranked : 240 / 240 OK
+CHECK direction sums to total: 240 / 240 OK
+CHECK ranked === matrix ranked: 240 / 240 OK
+CHECK row pcts ≈100 : M2:100 G1:100 SRG1:100 G2:100 SRG2:100 G3:100 SRG3:100 G4:100 SRG4:100 G5:100
+DARK SPOTS: IT Support(sub_team) h3 g0 r0
+CONCENTRATION: 52 givers, 51 recipients, top-10% share 25.8%
+CELL SRG1 → SRG1 = 32
+  drill-down total    : 32 OK
+  pair counts sum     : 32 === total OK
+  distinct pairs      : 22
+  page 1 items        : 15 (pageSize 15)
+  every item on-grade : OK
+  newest first        : OK
+  top pairs: Manoj Mukherjee(SRG1) → Rajesh Middya(SRG1) ×3 | Payel Oraon(SRG1) → Priya Khan(SRG1) ×3 | Priya Khan(SRG1) → Payel Oraon(SRG1) ×3
+
+ROW G3 gave: drill 26 vs matrix 26 (>= matrix: includes unmapped recipients) OK
+DIRECTION upward    : 79 | all upward: OK
+PERSON Manoj Mukherjee: 8 | every row involves them: OK
+PAGING: p1 20 p2 20 | overlap 0 OK

@@ -141,7 +141,7 @@ export interface AnalyticsSummary {
   weekly: { weekStartIst: string; count: number }[]
 }
 
-export interface FunctionShiftRow {
+export interface GroupStatRow {
   name: string
   headcount: number
   given: number
@@ -149,9 +149,10 @@ export interface FunctionShiftRow {
   giverParticipationPct: number
 }
 
-export interface FunctionShiftSplit {
-  functions: FunctionShiftRow[]
-  shifts: FunctionShiftRow[]
+/** Function vs office. (Was function vs shift — a software org has no shifts.) */
+export interface FunctionSiteSplit {
+  functions: GroupStatRow[]
+  sites: GroupStatRow[]
 }
 
 export interface BehaviourBreakdownRow {
@@ -164,15 +165,81 @@ export interface BehaviourBreakdownRow {
 
 export interface DirectionMix {
   total: number
+  /** Rows where BOTH grades are on the ladder — the denominator for the split. */
+  ranked: number
+  unknownGrade: number
   juniorToSenior: number
   seniorToJunior: number
   peer: number
   crossFunction: number
   sameFunction: number
+  unmappedGrades: string[]
+}
+
+export interface GradeStatRow {
+  grade: string
+  /** 1-based tier on the DarwinBox ladder; null when the grade is unrecognised. */
+  tier: number | null
+  headcount: number
+  given: number
+  received: number
+  givenPerHead: number
+  receivedPerHead: number
+  giverParticipationPct: number
+  receiverCoveragePct: number
+}
+
+export interface GradeMatrixCell {
+  giverGrade: string
+  recipientGrade: string
+  count: number
+  pctOfGiverRow: number
+}
+
+export type FlowDirection = 'upward' | 'downward' | 'peer' | 'unknown'
+
+export interface FlowPerson {
+  id: number
+  name: string
+  grade: string
+  tier: number | null
+  function: string
+  site: string
+}
+
+export interface GradeFlowPair {
+  giver: FlowPerson
+  recipient: FlowPerson
+  count: number
+}
+
+export interface GradeFlowItem {
+  id: number
+  createdAt: string
+  giver: FlowPerson
+  recipient: FlowPerson
+  behaviour: { id: number; name: string; colour: string }
+  reason: string
+  direction: FlowDirection
+}
+
+export interface GradeFlow {
+  total: number
+  page: number
+  pageSize: number
+  pairs: GradeFlowPair[]
+  items: GradeFlowItem[]
+}
+
+export interface GradeAnalysis {
+  grades: GradeStatRow[]
+  matrix: GradeMatrixCell[]
+  total: number
+  ranked: number
 }
 
 export interface DarkSpotRow {
-  dimension: 'sub_team' | 'shift' | 'site'
+  dimension: 'sub_team' | 'site'
   name: string
   site?: string
   headcount: number

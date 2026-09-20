@@ -1,15 +1,20 @@
 /**
- * Shared chart pieces (recharts) following the dataviz design brief (SPEC §6):
+ * Shared chart pieces (recharts) following the dataviz design brief (SPEC §6),
+ * on the Acceleron brand palette:
  *
- *  - single hue #0F6B5C for single-series bars/lines; the validated lighter
- *    step #63A296 joins it for two-series given/received bars (one hue, two
- *    shades — passes the ordinal ramp checks light-end 2.9:1);
+ *  - magnitude is a single hue — the brand navy #212f60 — with a validated
+ *    lighter step #6478ad joining it for two-series given/received bars (one
+ *    hue, two shades, so the pair reads as one measure split in two);
+ *  - the brand red #de1e24 is NOT a series colour. It is reserved for
+ *    attention: a zero-activity dark spot, an over-concentrated giver share,
+ *    a sample too small to draw a conclusion from. Using it for an ordinary
+ *    bar would spend the one colour the eye has been trained to stop at;
  *  - behaviour colours appear ONLY on behaviour charts, and identity is never
  *    colour-alone there: the behaviour NAME is always printed on the axis and
  *    counts ride the bar ends (the seeded DB palette's adjacent-CVD spread is
  *    below the standalone-categorical floor, so labels are the identity channel);
- *  - light solid hairline grid #E3E9E7, thin marks with rounded data-ends,
- *    no legends where direct labels do the work, plain number formatting;
+ *  - light solid hairline grid, thin marks with rounded data-ends, no legends
+ *    where direct labels do the work, plain number formatting;
  *  - every chart card can carry a "View data" table twin so no value is
  *    gated behind hover.
  */
@@ -29,10 +34,30 @@ import {
 } from 'recharts'
 import { formatNum, formatPct } from '../format'
 
-export const CHART_GREEN = '#0f6b5c'
-export const CHART_GREEN_LIGHT = '#63a296'
-export const CHART_GRID = '#e3e9e7'
-export const CHART_TEXT = '#5f7069'
+/** Brand navy — the single hue every magnitude chart is drawn in. */
+export const CHART_NAVY = '#212f60'
+/** One step lighter, for the second series in a two-series pair. */
+export const CHART_NAVY_LIGHT = '#6478ad'
+/** Brand red. Attention only — never an ordinary series. */
+export const CHART_ALERT = '#de1e24'
+export const CHART_GRID = '#e5e8f0'
+export const CHART_TEXT = '#64748b'
+export const CHART_INK = '#0f172a'
+
+/**
+ * Sequential navy ramp for the grade matrix, lightest to darkest.
+ *
+ * A heatmap needs ordered steps rather than distinct colours — the question a
+ * reader asks of a cell is "more or less than its neighbour", which is a
+ * magnitude question. Five steps is as many as stays distinguishable on a
+ * projector.
+ */
+export const NAVY_RAMP = ['#eef1f8', '#c9d2e7', '#94a4cd', '#5c6fa8', '#212f60'] as const
+
+/** @deprecated brand palette — kept so older imports keep compiling. */
+export const CHART_GREEN = CHART_NAVY
+/** @deprecated brand palette — kept so older imports keep compiling. */
+export const CHART_GREEN_LIGHT = CHART_NAVY_LIGHT
 
 const AXIS_TICK = { fill: CHART_TEXT, fontSize: 12 }
 const AXIS_LINE = { stroke: CHART_GRID }
@@ -126,7 +151,7 @@ export function ChartTip(props: {
       {label !== undefined && label !== '' && <div className="tip-label">{String(label)}</div>}
       {payload.map((entry, i) => (
         <div className="tip-row" key={i}>
-          <span className="tip-key" style={{ background: entry.color ?? CHART_GREEN }} aria-hidden />
+          <span className="tip-key" style={{ background: entry.color ?? CHART_NAVY }} aria-hidden />
           <span className="tip-value">{formatNum(Number(entry.value ?? 0))}</span>
           {entry.name !== undefined && <span>{String(entry.name)}</span>}
         </div>
@@ -135,7 +160,7 @@ export function ChartTip(props: {
   )
 }
 
-const HOVER_CURSOR = { fill: 'rgba(15, 107, 92, 0.06)' }
+const HOVER_CURSOR = { fill: 'rgba(33, 47, 96, 0.06)' }
 
 // ── Weekly trend line ────────────────────────────────────────────────────────
 
@@ -159,11 +184,11 @@ export function TrendLine({
           type="monotone"
           dataKey="count"
           name={name}
-          stroke={CHART_GREEN}
+          stroke={CHART_NAVY}
           strokeWidth={2}
           isAnimationActive={false}
-          dot={{ r: 3, fill: CHART_GREEN, stroke: '#fff', strokeWidth: 2 }}
-          activeDot={{ r: 5, fill: CHART_GREEN, stroke: '#fff', strokeWidth: 2 }}
+          dot={{ r: 3, fill: CHART_NAVY, stroke: '#fff', strokeWidth: 2 }}
+          activeDot={{ r: 5, fill: CHART_NAVY, stroke: '#fff', strokeWidth: 2 }}
         />
       </LineChart>
     </ResponsiveContainer>
@@ -184,16 +209,16 @@ export function GivenReceivedBars({
         <XAxis dataKey="name" tick={AXIS_TICK} axisLine={AXIS_LINE} tickLine={false} interval={0} />
         <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
         <Tooltip content={<ChartTip />} cursor={HOVER_CURSOR} />
-        <Bar dataKey="given" name="Given" fill={CHART_GREEN_LIGHT} barSize={16} radius={[4, 4, 0, 0]} isAnimationActive={false} />
-        <Bar dataKey="received" name="Received" fill={CHART_GREEN} barSize={16} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+        <Bar dataKey="given" name="Given" fill={CHART_NAVY_LIGHT} barSize={16} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+        <Bar dataKey="received" name="Received" fill={CHART_NAVY} barSize={16} radius={[4, 4, 0, 0]} isAnimationActive={false} />
       </BarChart>
     </ResponsiveContainer>
   )
 }
 
 export const GIVEN_RECEIVED_LEGEND = [
-  { label: 'Given', colour: CHART_GREEN_LIGHT },
-  { label: 'Received', colour: CHART_GREEN },
+  { label: 'Given', colour: CHART_NAVY_LIGHT },
+  { label: 'Received', colour: CHART_NAVY },
 ]
 
 // ── Horizontal bars in behaviour colours (names always on the axis) ─────────
@@ -216,7 +241,7 @@ export function BehaviourBars({
           type="category"
           dataKey="name"
           width={148}
-          tick={{ ...AXIS_TICK, fill: '#172723' }}
+          tick={{ ...AXIS_TICK, fill: CHART_INK }}
           axisLine={AXIS_LINE}
           tickLine={false}
           interval={0}
@@ -268,13 +293,13 @@ export function SingleHueBars({
           type="category"
           dataKey="name"
           width={axisWidth}
-          tick={{ ...AXIS_TICK, fill: '#172723' }}
+          tick={{ ...AXIS_TICK, fill: CHART_INK }}
           axisLine={AXIS_LINE}
           tickLine={false}
           interval={0}
         />
         <Tooltip content={<ChartTip />} cursor={HOVER_CURSOR} />
-        <Bar dataKey="count" name="Count" fill={CHART_GREEN} barSize={18} radius={[0, 4, 4, 0]} isAnimationActive={false}>
+        <Bar dataKey="count" name="Count" fill={CHART_NAVY} barSize={18} radius={[0, 4, 4, 0]} isAnimationActive={false}>
           <LabelList
             dataKey={data.some((d) => d.label) ? 'label' : 'count'}
             position="right"
@@ -304,6 +329,215 @@ export function StatTile({
       <div className="stat-tile-value">{typeof value === 'number' ? formatNum(value) : value}</div>
       <div className="stat-tile-label">{label}</div>
       {sub && <div className="card-sub" style={{ marginTop: 4, fontSize: 11 }}>{sub}</div>}
+    </div>
+  )
+}
+
+// ── Thin-sample guard ────────────────────────────────────────────────────────
+
+/**
+ * Below this many rows a percentage is noise wearing a decimal point.
+ *
+ * Thirty is the conventional floor for treating a proportion as anything but
+ * indicative, and on a committee dashboard the cost of the wrong call is a
+ * real conversation with a real team — so the number is shown, and labelled
+ * as too small to act on, rather than quietly dropped.
+ */
+export const MIN_SAMPLE = 30
+
+export function SampleNote({
+  n,
+  what = 'recognitions',
+}: {
+  n: number
+  what?: string
+}): React.ReactElement {
+  const thin = n < MIN_SAMPLE
+  return (
+    <div className={thin ? 'sample-note thin' : 'sample-note'}>
+      {thin ? (
+        <>
+          <strong>Indicative only</strong> — {formatNum(n)} {what} in this range. Percentages on a
+          sample this small move a lot with one more entry; widen the date range before drawing a
+          conclusion.
+        </>
+      ) : (
+        <>Based on {formatNum(n)} {what}.</>
+      )}
+    </div>
+  )
+}
+
+// ── Grade matrix (giver grade × recipient grade) ─────────────────────────────
+
+export interface MatrixCell {
+  giverGrade: string
+  recipientGrade: string
+  count: number
+  pctOfGiverRow: number
+}
+
+/**
+ * Who recognises whom, by rung.
+ *
+ * Rows are the giver's grade and columns the recipient's, both in ladder
+ * order, so the shape itself is the finding: mass below the diagonal means
+ * recognition travels DOWN the organisation, mass above it means upward, and
+ * a tight diagonal means people mostly recognise their own level.
+ *
+ * Shaded by share of the giver's own row rather than by raw count — otherwise
+ * the largest grade's row is dark simply because it is the largest, and the
+ * question "where does THIS rung send its recognition" cannot be read at all.
+ */
+export interface MatrixSelection {
+  giverGrade?: string
+  recipientGrade?: string
+}
+
+export function GradeMatrix({
+  grades,
+  cells,
+  selection,
+  onSelect,
+  emptyLabel = 'No recognitions between mapped grades in this range',
+}: {
+  /** Ladder order, junior first. */
+  grades: string[]
+  cells: MatrixCell[]
+  /** The cell, row or column currently drilled into. */
+  selection?: MatrixSelection
+  /**
+   * Called with the slice to open. A row header sends only a giver grade, a
+   * column header only a recipient grade, a cell both — so "everything G3
+   * gave" and "everything SRG1 received" are one click each, not a trip
+   * through the filter row.
+   */
+  onSelect?: (sel: MatrixSelection) => void
+  emptyLabel?: string
+}): React.ReactElement {
+  if (grades.length === 0 || cells.length === 0) {
+    return <div className="matrix-empty">{emptyLabel}</div>
+  }
+  const byKey = new Map(cells.map((c) => [`${c.giverGrade}>${c.recipientGrade}`, c]))
+  const shade = (pct: number): string => {
+    if (pct <= 0) return 'transparent'
+    if (pct < 10) return NAVY_RAMP[0]
+    if (pct < 25) return NAVY_RAMP[1]
+    if (pct < 45) return NAVY_RAMP[2]
+    if (pct < 70) return NAVY_RAMP[3]
+    return NAVY_RAMP[4]
+  }
+  // White text only on the two darkest steps; anywhere lighter it fails.
+  const ink = (pct: number): string => (pct >= 45 ? '#ffffff' : CHART_INK)
+
+  const sel = selection ?? {}
+  const rowSelected = (gr: string) => sel.giverGrade === gr && !sel.recipientGrade
+  const colSelected = (rr: string) => sel.recipientGrade === rr && !sel.giverGrade
+  const cellSelected = (gr: string, rr: string) =>
+    sel.giverGrade === gr && sel.recipientGrade === rr
+  // A cell in a selected row or column is dimmed rather than hidden, so the
+  // shape of the whole matrix stays readable while one slice is open.
+  const inSelection = (gr: string, rr: string) =>
+    (sel.giverGrade === undefined || sel.giverGrade === gr) &&
+    (sel.recipientGrade === undefined || sel.recipientGrade === rr)
+  const anySelection = sel.giverGrade !== undefined || sel.recipientGrade !== undefined
+
+  const pick = (next: MatrixSelection, isCurrent: boolean) => {
+    if (!onSelect) return
+    // Clicking the open slice again closes it — no separate "clear" to hunt for.
+    onSelect(isCurrent ? {} : next)
+  }
+
+  return (
+    <div className="matrix-wrap">
+      <table className={`matrix${onSelect ? ' selectable' : ''}`} role="table">
+        <thead>
+          <tr>
+            <th className="matrix-corner" scope="col">
+              <span className="matrix-axis-giver">Giver ↓</span>
+              <span className="matrix-axis-recipient">Recipient →</span>
+            </th>
+            {grades.map((g) => (
+              <th
+                key={g}
+                scope="col"
+                className={`matrix-head${colSelected(g) ? ' picked' : ''}`}
+                onClick={onSelect ? () => pick({ recipientGrade: g }, colSelected(g)) : undefined}
+                title={onSelect ? `Everything ${g} received` : undefined}
+              >
+                {g}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {grades.map((gr) => (
+            <tr key={gr}>
+              <th
+                scope="row"
+                className={`matrix-head${rowSelected(gr) ? ' picked' : ''}`}
+                onClick={onSelect ? () => pick({ giverGrade: gr }, rowSelected(gr)) : undefined}
+                title={onSelect ? `Everything ${gr} gave` : undefined}
+              >
+                {gr}
+              </th>
+              {grades.map((rr) => {
+                const cell = byKey.get(`${gr}>${rr}`)
+                const count = cell?.count ?? 0
+                const pct = cell?.pctOfGiverRow ?? 0
+                const same = gr === rr
+                const picked = cellSelected(gr, rr)
+                const muted = anySelection && !inSelection(gr, rr)
+                const label = `${gr} → ${rr}: ${formatNum(count)} (${formatPct(pct)} of ${gr}'s recognitions)`
+                return (
+                  <td
+                    key={rr}
+                    className={
+                      `matrix-cell${same ? ' diag' : ''}${count === 0 ? ' zero' : ''}` +
+                      `${picked ? ' picked' : ''}${muted ? ' muted' : ''}` +
+                      `${onSelect && count > 0 ? ' clickable' : ''}`
+                    }
+                    style={count > 0 ? { background: shade(pct), color: ink(pct) } : undefined}
+                    title={label}
+                    aria-label={onSelect && count > 0 ? `${label}. Show these recognitions` : label}
+                    role={onSelect && count > 0 ? 'button' : undefined}
+                    tabIndex={onSelect && count > 0 ? 0 : undefined}
+                    onClick={
+                      onSelect && count > 0
+                        ? () => pick({ giverGrade: gr, recipientGrade: rr }, picked)
+                        : undefined
+                    }
+                    onKeyDown={
+                      onSelect && count > 0
+                        ? (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              pick({ giverGrade: gr, recipientGrade: rr }, picked)
+                            }
+                          }
+                        : undefined
+                    }
+                  >
+                    {count > 0 ? formatNum(count) : '·'}
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="matrix-legend">
+        <span>
+          Share of the giver grade&rsquo;s own recognitions
+          {onSelect && <> &middot; click a cell, row or column to see the people</>}
+        </span>
+        <span className="matrix-scale" aria-hidden>
+          {NAVY_RAMP.map((c) => (
+            <i key={c} style={{ background: c }} />
+          ))}
+        </span>
+        <span>low → high</span>
+      </div>
     </div>
   )
 }

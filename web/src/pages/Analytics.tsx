@@ -1,11 +1,17 @@
 /**
- * /analytics — committee dashboard (FR-26…FR-31).
- * One IST date-range filter row scopes every widget below it. Single-hue
- * teal for magnitude charts; behaviour colours only on the behaviour
- * breakdown (names printed beside every bar); dark-spots table highlights
- * zero-activity groups; concentration shows the top-10% giver share.
+ * /analytics — committee dashboard (FR-26…FR-31) plus the grade view.
+ *
+ * One IST date-range filter row scopes every widget below it. Brand navy is
+ * the single hue for magnitude; brand red is reserved for attention (dark
+ * spots, over-concentration, samples too thin to act on). Behaviour colours
+ * appear only on the behaviour breakdown, with names printed beside the bars.
+ *
+ * The grade section is the one that answers "does recognition travel up, down
+ * or sideways" — the matrix shows the shape, the per-grade table shows it
+ * per head so a four-person leadership rung can be compared with a forty-
+ * person engineering one without the raw counts doing the talking.
  */
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
 import { useApi } from '../hooks'
@@ -14,14 +20,18 @@ import {
   ChartCard,
   GIVEN_RECEIVED_LEGEND,
   GivenReceivedBars,
+  GradeMatrix,
+  MatrixSelection,
+  SampleNote,
   SingleHueBars,
   StatTile,
   TrendLine,
   withPctLabels,
 } from '../components/charts'
-import { Button, Card, EmptyState, ErrorState, Field, Loading } from '../components/ui'
+import { Button, Card, EmptyState, ErrorState, Field, Loading, Pager } from '../components/ui'
 import { formatIstShortDate, formatNum, formatPct, istDaysAgo, istToday } from '../format'
-import type { DirectionMix } from '../types'
+import { PersonPicker } from './Feed'
+import type { DirectionMix, EmployeeSearchHit, GradeAnalysis } from '../types'
 
 const PRESETS = [
   { label: 'Last 30 days', days: 30 },
@@ -35,9 +45,10 @@ export default function Analytics(): React.ReactElement {
   const range = useMemo(() => ({ from, to }), [from, to])
 
   const summary = useApi(() => api.analyticsSummary(range), [range])
-  const split = useApi(() => api.analyticsFunctionShift(range), [range])
+  const split = useApi(() => api.analyticsFunctionSite(range), [range])
   const behaviours = useApi(() => api.analyticsBehaviours(range), [range])
   const direction = useApi(() => api.analyticsDirection(range), [range])
+  const grades = useApi(() => api.analyticsGrades(range), [range])
   const darkSpots = useApi(() => api.analyticsDarkSpots(range), [range])
   const concentration = useApi(() => api.analyticsConcentration(range), [range])
 
@@ -51,7 +62,7 @@ export default function Analytics(): React.ReactElement {
       <div className="page-head">
         <div>
           <h1>Analytics</h1>
-          <div className="page-sub">Programme health across sites, functions and shifts (IST calendar)</div>
+          <div className="page-sub">Programme health across offices, functions and grades (IST calendar)</div>
         </div>
       </div>
 
@@ -146,12 +157,12 @@ export default function Analytics(): React.ReactElement {
               <GivenReceivedBars data={split.data.functions} />
             </ChartCard>
             <ChartCard
-              title="By shift"
-              sub="Are shop-floor shifts participating like the office?"
+              title="By office"
+              sub="Is every office getting the same attention, or just the one leadership sits in?"
               legend={GIVEN_RECEIVED_LEGEND}
               table={{
-                headers: ['Shift', 'Headcount', 'Given', 'Received', 'Giver participation'],
-                rows: split.data.shifts.map((s) => [
+                headers: ['Office', 'Headcount', 'Given', 'Received', 'Giver participation'],
+                rows: split.data.sites.map((s) => [
                   s.name,
                   s.headcount,
                   s.given,
@@ -160,7 +171,7 @@ export default function Analytics(): React.ReactElement {
                 ]),
               }}
             >
-              <GivenReceivedBars data={split.data.shifts} />
+              <GivenReceivedBars data={split.data.sites} />
             </ChartCard>
           </>
         ) : split.loading ? (
@@ -205,6 +216,15 @@ export default function Analytics(): React.ReactElement {
         ) : null}
       </div>
 
+      {/* Grade flow — the junior/senior picture */}
+      {grades.error ? (
+        <ErrorState error={grades.error} retry={grades.reload} />
+      ) : grades.data ? (
+        <GradeSection data={grades.data} range={range} />
+      ) : grades.loading ? (
+        <Loading label="Reading the grade ladder…" />
+      ) : null}
+
       {/* Dark spots (FR-30) */}
       <div style={{ marginBottom: 16 }}>
         {darkSpots.error ? (
@@ -212,7 +232,7 @@ export default function Analytics(): React.ReactElement {
         ) : darkSpots.data ? (
           <Card
             title="Dark spots"
-            sub="Teams, shifts and sites the programme isn't reaching — zero-activity groups highlighted"
+            sub="Squads and offices the programme isn't reaching — zero-activity groups highlighted"
           >
             {darkSpots.data.length === 0 ? (
               <EmptyState icon="✅" title="No dark spots" hint="Every group shows recognition activity in this range." />
@@ -280,7 +300,14 @@ export default function Analytics(): React.ReactElement {
   )
 }
 
-/** Direction of recognition (FR-29) — nominal categories, so one hue. */
+/**
+ * Direction of recognition (FR-29).
+ *
+ * The seniority split is computed on rows where BOTH grades are on the
+ * DarwinBox ladder, and says so — recognitions involving an unmapped grade
+ * are counted separately rather than folded into "peer to peer", which is how
+ * this number used to read 100% peer on live data.
+ */
 function DirectionCard({ mix }: { mix: DirectionMix }): React.ReactElement {
   const seniority = [
     { name: 'Peer to peer', count: mix.peer },
@@ -291,22 +318,163 @@ function DirectionCard({ mix }: { mix: DirectionMix }): React.ReactElement {
     { name: 'Same function', count: mix.sameFunction },
     { name: 'Cross-function', count: mix.crossFunction },
   ]
-  const pct = (n: number) => (mix.total > 0 ? ` (${formatPct((n / mix.total) * 100)})` : '')
+  const share = (n: number, whole: number) => (whole > 0 ? ` (${formatPct((n / whole) * 100)})` : '')
   return (
     <ChartCard
       title="Direction of recognition"
-      sub={`Who recognises whom, across ${formatNum(mix.total)} recognitions`}
+      sub="Which way it travels — by seniority, and across function boundaries"
       table={{
         headers: ['Direction', 'Count'],
-        rows: [...seniority, ...fn].map((r) => [r.name, r.count]),
+        rows: [
+          ...seniority.map((r) => [r.name, r.count] as (string | number)[]),
+          ['Grade not mapped', mix.unknownGrade],
+          ...fn.map((r) => [r.name, r.count] as (string | number)[]),
+        ],
       }}
     >
-      <SingleHueBars data={seniority.map((r) => ({ ...r, label: `${formatNum(r.count)}${pct(r.count)}` }))} />
-      <div className="card-sub" style={{ margin: '8px 0 2px' }}>
+      <SingleHueBars
+        data={seniority.map((r) => ({
+          ...r,
+          label: `${formatNum(r.count)}${share(r.count, mix.ranked)}`,
+        }))}
+      />
+      <SampleNote n={mix.ranked} what="graded recognitions" />
+      {mix.unknownGrade > 0 && (
+        <div className="sample-note thin" style={{ marginTop: 6 }}>
+          <strong>{formatNum(mix.unknownGrade)}</strong> of {formatNum(mix.total)} recognitions are
+          excluded from the split because a grade is not on the ladder
+          {mix.unmappedGrades.length > 0 && <> ({mix.unmappedGrades.join(', ')})</>}. Fix the grade
+          in DarwinBox, or add the rung in <code>server/src/modules/grades.ts</code>.
+        </div>
+      )}
+      <div className="card-sub" style={{ margin: '14px 0 2px' }}>
         Function boundaries
       </div>
-      <SingleHueBars data={fn.map((r) => ({ ...r, label: `${formatNum(r.count)}${pct(r.count)}` }))} />
+      <SingleHueBars
+        data={fn.map((r) => ({ ...r, label: `${formatNum(r.count)}${share(r.count, mix.total)}` }))}
+      />
     </ChartCard>
+  )
+}
+
+/**
+ * The grade section.
+ *
+ * Two halves that answer different questions. The matrix answers "what shape
+ * is the flow" — mass below the diagonal is recognition travelling down the
+ * organisation. The table answers "is that just because there are more of
+ * them", which is why it leads on per-head rates rather than counts.
+ */
+function GradeSection({
+  data,
+  range,
+}: {
+  data: GradeAnalysis
+  range: { from: string; to: string }
+}): React.ReactElement {
+  const [selection, setSelection] = useState<MatrixSelection>({})
+  // Only rungs that are on the ladder can be placed in seniority order, so
+  // only those form the matrix axes. Unmapped grades still appear in the
+  // table below, where they are a directory problem to go and fix.
+  const ladder = data.grades.filter((g) => g.tier !== null).map((g) => g.grade)
+  const unmapped = data.grades.filter((g) => g.tier === null)
+
+  return (
+    <>
+      <div className="chart-grid" style={{ marginBottom: 16 }}>
+        <ChartCard
+          className="span-2"
+          title="Who recognises whom, by grade"
+          sub="Rows are the giver's grade, columns the recipient's, both junior → senior. Below the diagonal is downward recognition; above it is upward."
+          table={{
+            headers: ['Giver grade', 'Recipient grade', 'Count', "Share of giver's row"],
+            rows: data.matrix.map((c) => [
+              c.giverGrade,
+              c.recipientGrade,
+              c.count,
+              formatPct(c.pctOfGiverRow),
+            ]),
+          }}
+        >
+          <GradeMatrix
+            grades={ladder}
+            cells={data.matrix}
+            selection={selection}
+            onSelect={setSelection}
+          />
+          <SampleNote n={data.ranked} what="recognitions between mapped grades" />
+        </ChartCard>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <Card
+          title="Participation by grade"
+          sub="Per-head rates, not raw counts — a four-person leadership rung and a forty-person engineering one are otherwise not comparable"
+        >
+          {data.grades.length === 0 ? (
+            <EmptyState title="No employees in the directory" />
+          ) : (
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Grade</th>
+                    <th className="num">Tier</th>
+                    <th className="num">Headcount</th>
+                    <th className="num">Given</th>
+                    <th className="num">Given / head</th>
+                    <th className="num">Received</th>
+                    <th className="num">Received / head</th>
+                    <th className="num">Gave at least once</th>
+                    <th className="num">Received at least once</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.grades.map((g) => (
+                    <tr key={g.grade} className={g.tier === null ? 'row-zero' : undefined}>
+                      <td>
+                        <strong>{g.grade}</strong>
+                        {g.tier === null && (
+                          <span className="badge badge-neutral" style={{ marginLeft: 8 }}>
+                            not on ladder
+                          </span>
+                        )}
+                      </td>
+                      <td className="num">{g.tier ?? '—'}</td>
+                      <td className="num">{g.headcount}</td>
+                      <td className="num">{g.given}</td>
+                      <td className="num">{g.givenPerHead}</td>
+                      <td className="num">{g.received}</td>
+                      <td className="num">{g.receivedPerHead}</td>
+                      <td className="num">{formatPct(g.giverParticipationPct)}</td>
+                      <td className="num">{formatPct(g.receiverCoveragePct)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {unmapped.length > 0 && (
+            <div className="sample-note thin" style={{ marginTop: 10 }}>
+              <strong>{unmapped.length}</strong>{' '}
+              {unmapped.length === 1 ? 'grade is' : 'grades are'} not on the seniority ladder
+              ({unmapped.map((g) => g.grade).join(', ')}), so the people on{' '}
+              {unmapped.length === 1 ? 'it' : 'them'} are left out of the matrix and the
+              junior/senior split.
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <GradeFlowPanel
+          range={range}
+          selection={selection}
+          onSelectionChange={setSelection}
+          ladder={ladder}
+        />
+      </div>
+    </>
   )
 }
 
@@ -347,6 +515,256 @@ function ConcentrationTable({
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+/**
+ * Who → whom, behind the matrix.
+ *
+ * Opens on a matrix click and can also be driven from its own filter row, so
+ * "everything this one person gave, upward" is reachable without going
+ * through the grid. Two tables rather than one: the pair roll-up says whether
+ * a cell is a pattern or a single relationship, and the recognitions
+ * underneath are the evidence for it.
+ */
+function GradeFlowPanel({
+  range,
+  selection,
+  onSelectionChange,
+  ladder,
+}: {
+  range: { from: string; to: string }
+  selection: MatrixSelection
+  onSelectionChange: (sel: MatrixSelection) => void
+  ladder: string[]
+}): React.ReactElement {
+  const [direction, setDirection] = useState<'' | 'upward' | 'downward' | 'peer'>('')
+  const [person, setPerson] = useState<EmployeeSearchHit | null>(null)
+  const [page, setPage] = useState(1)
+
+  // Any change to what is being asked for starts again at page 1 — otherwise
+  // a narrower filter lands the reader on an empty page 3.
+  useEffect(() => {
+    setPage(1)
+  }, [selection.giverGrade, selection.recipientGrade, direction, person, range])
+
+  const query = useMemo(
+    () => ({
+      ...range,
+      giverGrade: selection.giverGrade || undefined,
+      recipientGrade: selection.recipientGrade || undefined,
+      direction: direction || undefined,
+      personId: person?.id,
+      page,
+      pageSize: 15,
+    }),
+    [range, selection.giverGrade, selection.recipientGrade, direction, person, page],
+  )
+  const flow = useApi(() => api.analyticsGradeFlow(query), [query])
+
+  const filtered =
+    selection.giverGrade !== undefined ||
+    selection.recipientGrade !== undefined ||
+    direction !== '' ||
+    person !== null
+
+  const what = (): string => {
+    const g = selection.giverGrade
+    const r = selection.recipientGrade
+    if (g && r) return `${g} → ${r}`
+    if (g) return `Everything ${g} gave`
+    if (r) return `Everything ${r} received`
+    if (direction === 'upward') return 'Junior → senior'
+    if (direction === 'downward') return 'Senior → junior'
+    if (direction === 'peer') return 'Peer to peer'
+    return 'Everyone'
+  }
+
+  const clearAll = () => {
+    onSelectionChange({})
+    setDirection('')
+    setPerson(null)
+  }
+
+  return (
+    <Card
+      title="Who recognised whom"
+      sub="The people behind the grades — click a cell, row or column above, or filter here"
+    >
+      <div className="filter-bar" style={{ marginBottom: 14 }}>
+        <Field label="Giver grade">
+          <select
+            className="select"
+            value={selection.giverGrade ?? ''}
+            onChange={(e) =>
+              onSelectionChange({ ...selection, giverGrade: e.target.value || undefined })
+            }
+          >
+            <option value="">Any grade</option>
+            {ladder.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Recipient grade">
+          <select
+            className="select"
+            value={selection.recipientGrade ?? ''}
+            onChange={(e) =>
+              onSelectionChange({ ...selection, recipientGrade: e.target.value || undefined })
+            }
+          >
+            <option value="">Any grade</option>
+            {ladder.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Direction">
+          <select
+            className="select"
+            value={direction}
+            onChange={(e) => setDirection(e.target.value as typeof direction)}
+          >
+            <option value="">Any direction</option>
+            <option value="upward">Junior → senior</option>
+            <option value="downward">Senior → junior</option>
+            <option value="peer">Peer to peer</option>
+          </select>
+        </Field>
+        <Field label="Person (either side)" grow>
+          <PersonPicker value={person} onChange={setPerson} />
+        </Field>
+        {filtered && (
+          <Button small variant="ghost" onClick={clearAll}>
+            Clear
+          </Button>
+        )}
+      </div>
+
+      {flow.error ? (
+        <ErrorState error={flow.error} retry={flow.reload} />
+      ) : flow.loading || !flow.data ? (
+        <Loading />
+      ) : flow.data.total === 0 ? (
+        <EmptyState
+          title="Nothing matches this slice"
+          hint="Try a wider date range, or clear one of the filters."
+        />
+      ) : (
+        <div className={flow.refreshing ? 'refetch-dim' : ''}>
+          <div className="flow-head">
+            <span className="flow-what">{what()}</span>
+            <span className="flow-count">
+              {formatNum(flow.data.total)}{' '}
+              {flow.data.total === 1 ? 'recognition' : 'recognitions'} &middot;{' '}
+              {formatNum(flow.data.pairs.length)}{' '}
+              {flow.data.pairs.length === 1 ? 'pair of people' : 'pairs of people'}
+            </span>
+          </div>
+
+          <div className="card-sub" style={{ margin: '14px 0 6px' }}>
+            Most frequent pairs
+          </div>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Giver</th>
+                  <th>Recipient</th>
+                  <th className="num">Times</th>
+                </tr>
+              </thead>
+              <tbody>
+                {flow.data.pairs.slice(0, 10).map((p) => (
+                  <tr key={`${p.giver.id}-${p.recipient.id}`}>
+                    <td>
+                      <Link to={`/people/${p.giver.id}`}>{p.giver.name}</Link>
+                      <span className="flow-meta">
+                        {p.giver.grade} &middot; {p.giver.function}
+                      </span>
+                    </td>
+                    <td>
+                      <Link to={`/people/${p.recipient.id}`}>{p.recipient.name}</Link>
+                      <span className="flow-meta">
+                        {p.recipient.grade} &middot; {p.recipient.function}
+                      </span>
+                    </td>
+                    <td className="num">{p.count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="card-sub" style={{ margin: '18px 0 6px' }}>
+            The recognitions
+          </div>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>Giver</th>
+                  <th>Recipient</th>
+                  <th>Behaviour</th>
+                  <th>What they did</th>
+                </tr>
+              </thead>
+              <tbody>
+                {flow.data.items.map((it) => (
+                  <tr key={it.id}>
+                    <td className="flow-when">{formatIstShortDate(it.createdAt)}</td>
+                    <td>
+                      <Link to={`/people/${it.giver.id}`}>{it.giver.name}</Link>
+                      <span className="flow-meta">{it.giver.grade}</span>
+                    </td>
+                    <td>
+                      <Link to={`/people/${it.recipient.id}`}>{it.recipient.name}</Link>
+                      <span className="flow-meta">
+                        {it.recipient.grade}
+                        <em className={`flow-dir ${it.direction}`}>
+                          {it.direction === 'upward'
+                            ? '↑ upward'
+                            : it.direction === 'downward'
+                              ? '↓ downward'
+                              : it.direction === 'peer'
+                                ? '→ peer'
+                                : '? unmapped'}
+                        </em>
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        className="badge"
+                        style={{
+                          borderColor: it.behaviour.colour,
+                          color: it.behaviour.colour,
+                          background: '#fff',
+                        }}
+                      >
+                        {it.behaviour.name}
+                      </span>
+                    </td>
+                    <td className="flow-reason">{it.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pager
+            page={flow.data.page}
+            pageSize={flow.data.pageSize}
+            total={flow.data.total}
+            onPage={setPage}
+          />
         </div>
       )}
     </Card>

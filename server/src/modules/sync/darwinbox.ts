@@ -13,6 +13,7 @@ import { Knex } from 'knex'
 import { config } from '../../config'
 import { getDb } from '../../db/knex'
 import { nowIso } from '../../db/time'
+import { isKnownGrade, normalizeGrade } from '../grades'
 import { Employee } from '../../types'
 
 export interface DirectorySyncResult {
@@ -105,14 +106,45 @@ function isDbxActive(rec: DbxEmployee): boolean {
 }
 
 /** Map a DarwinBox record onto our employees columns (sync-owned fields only). */
+/**
+ * Grades we have already complained about this run.
+ *
+ * A directory of a few thousand people with one unmapped rung would otherwise
+ * put a few thousand identical lines in the sync log and bury everything else.
+ */
+const unknownGradesSeen = new Set<string>()
+
 function mapFields(rec: DbxEmployee, mobile: string, companyCode: string): Partial<Employee> {
-  const grade = String(rec.job_level ?? rec['Job Level'] ?? '').trim().toUpperCase()
+  /**
+   * The HRMS grade, kept AS DARWINBOX REPORTS IT.
+   *
+   * This used to read `/^L[1-5]$/.test(grade) ? grade : 'L2'`, which looks
+   * like a guard and behaves like a wipe: the real job_level values are
+   * M2 / G1 / SRG1 / G2 / … / G5, none of which match, so every synced
+   * employee landed on 'L2'. The direction-of-recognition analysis then
+   * compared L2 with L2 for every pair and reported the entire programme as
+   * peer-to-peer. Grades are stored verbatim now; modules/grades.ts owns the
+   * question of what they mean.
+   */
+  const grade = normalizeGrade(rec.job_level ?? rec['Job Level'])
   const rawName = String(rec.full_name ?? rec['Full Name'] ?? 'Employee').trim()
   const rawDept = String(rec.function_name ?? rec['Parent Function Name'] ?? 'Unassigned').trim()
   const rawSubTeam = String(rec['Top Department'] ?? '').trim()
   const rawSite = String(rec.office_location ?? rec['Location'] ?? 'Unassigned').trim()
   const rawEmail = String(rec.company_email_id ?? rec['Official Email Id'] ?? '').trim().toLowerCase()
   const hrmsUpdatedOn = String(rec['Updated On'] ?? rec.date_of_joining ?? '').trim()
+
+  // A grade off the ladder is a directory problem, not a row to silently
+  // reshape: it is stored as-is and those rows are reported separately in the
+  // analytics rather than being counted as peer-to-peer.
+  if (grade && !isKnownGrade(grade) && !unknownGradesSeen.has(grade)) {
+    unknownGradesSeen.add(grade)
+    console.warn(
+      `[darwinbox] job_level "${grade}" is not on the seniority ladder — ` +
+        'recognitions involving these employees will be reported as "grade not mapped". ' +
+        'Add the rung to server/src/modules/grades.ts if it is a real one.',
+    )
+  }
 
   return {
     name: rawName || 'Employee',
@@ -128,7 +160,7 @@ function mapFields(rec: DbxEmployee, mobile: string, companyCode: string): Parti
       .includes('contract')
       ? 'contractual'
       : 'permanent',
-    level_grade: /^L[1-5]$/.test(grade) ? grade : 'L2',
+    level_grade: grade || 'UNKNOWN',
     active: isDbxActive(rec) ? 1 : 0,
     hrms_updated_on: hrmsUpdatedOn || null,
     company_code: companyCode || null,

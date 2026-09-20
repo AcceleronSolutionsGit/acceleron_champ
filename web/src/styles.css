@@ -3137,3 +3137,177 @@ h3 { font-size: 15px; font-weight: 600; }
   border-radius: 50%;
   flex: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Analytics — grade matrix and sample guards
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* A note under any figure computed from a proportion. Neutral when the
+   sample is sound; brand red when it is too thin to act on — the one place
+   red earns its keep, because the point is to stop the reader. */
+.sample-note {
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--navy-50);
+  border-left: 3px solid var(--navy-200);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.sample-note strong { color: var(--ink); font-weight: 600; }
+.sample-note code {
+  font-family: 'SF Mono', 'Cascadia Code', monospace;
+  font-size: 11px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.sample-note.thin {
+  background: #fdf2f2;
+  border-left-color: var(--brand-red);
+}
+.sample-note.thin strong { color: var(--brand-red-dark); }
+
+/* ── the matrix ──────────────────────────────────────────────────────────── */
+.matrix-wrap { overflow-x: auto; }
+
+.matrix {
+  border-collapse: separate;
+  border-spacing: 2px;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+.matrix th {
+  font-family: var(--font-heading);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  color: var(--navy-600);
+  padding: 7px 6px;
+  white-space: nowrap;
+}
+.matrix thead th { text-align: center; }
+.matrix tbody th { text-align: right; padding-right: 12px; }
+
+/* The corner cell carries both axis labels, so neither axis needs a caption
+   floating outside the table where it can drift away from it. */
+.matrix-corner {
+  text-align: left !important;
+  font-weight: 500 !important;
+  color: var(--faint) !important;
+  font-size: 10px !important;
+  line-height: 1.4;
+}
+.matrix-axis-giver,
+.matrix-axis-recipient { display: block; }
+.matrix-axis-recipient { color: var(--muted); }
+
+.matrix-cell {
+  min-width: 46px;
+  padding: 9px 8px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-xs);
+  background: #ffffff;
+  color: var(--ink);
+}
+.matrix-cell.zero { color: var(--faint); font-weight: 400; background: #fbfcfe; }
+/* The diagonal is peer-to-peer. Outlined rather than filled differently, so
+   it stays readable as part of the same magnitude scale. */
+.matrix-cell.diag { box-shadow: inset 0 0 0 1.5px var(--navy-300); }
+
+.matrix-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.matrix-scale { display: inline-flex; gap: 2px; }
+.matrix-scale i {
+  width: 22px;
+  height: 9px;
+  border-radius: 2px;
+  border: 1px solid rgba(15, 23, 42, .06);
+}
+
+.matrix-empty {
+  display: grid;
+  place-items: center;
+  height: 160px;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* ── matrix: selection ───────────────────────────────────────────────────── */
+.matrix.selectable .matrix-head { cursor: pointer; border-radius: var(--radius-xs); }
+.matrix.selectable .matrix-head:hover { background: var(--navy-50); }
+.matrix-head.picked {
+  background: var(--navy-600) !important;
+  color: #ffffff !important;
+}
+
+.matrix-cell.clickable { cursor: pointer; }
+.matrix-cell.clickable:hover { box-shadow: inset 0 0 0 2px var(--navy-400); }
+.matrix-cell.clickable:focus-visible {
+  outline: 2px solid var(--navy-600);
+  outline-offset: 1px;
+}
+/* The open slice keeps its magnitude colour and gains a ring, so selection
+   and value are two separate channels rather than one fighting the other. */
+.matrix-cell.picked { box-shadow: inset 0 0 0 2.5px var(--brand-red); }
+/* Everything outside the slice fades rather than disappearing — the shape of
+   the whole matrix is still the context for the bit being read. */
+.matrix-cell.muted { opacity: .32; }
+
+/* ── who → whom ──────────────────────────────────────────────────────────── */
+.flow-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 11px 14px;
+  background: var(--navy-50);
+  border-left: 3px solid var(--navy-600);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.flow-what {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--navy-600);
+}
+.flow-count { font-size: 12px; color: var(--muted); }
+
+/* Grade and function sit under the name rather than in columns of their own —
+   at eight columns the table starts wrapping names, which is the one thing
+   that has to stay scannable. */
+.flow-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--faint);
+}
+.flow-dir {
+  font-style: normal;
+  font-weight: 600;
+  margin-left: 6px;
+}
+.flow-dir.upward { color: #0f766e; }
+.flow-dir.downward { color: var(--navy-500); }
+.flow-dir.peer { color: var(--faint); }
+.flow-dir.unknown { color: var(--brand-red); }
+
+.flow-when { white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); }
+.flow-reason {
+  max-width: 420px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}

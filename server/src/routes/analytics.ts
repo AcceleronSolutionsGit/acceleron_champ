@@ -1,5 +1,6 @@
 /**
- * /api/analytics — committee/admin dashboard endpoints (FR-26…FR-31).
+ * /api/analytics — committee/admin dashboard endpoints (FR-26…FR-31), plus
+ * /grades for the seniority-ladder view.
  *
  * Every endpoint takes optional from/to as IST calendar dates (YYYY-MM-DD),
  * defaulting to the last 90 days, and excludes removed recognitions. The
@@ -17,7 +18,9 @@ import {
   getConcentration,
   getDarkSpots,
   getDirectionMix,
-  getFunctionShift,
+  getFunctionSite,
+  getGradeAnalysis,
+  getGradeFlow,
   getSummary,
 } from '../modules/analytics/queries'
 
@@ -54,10 +57,14 @@ router.get(
   }),
 )
 
+/**
+ * Kept at its old path so an already-deployed console does not 404 mid-roll,
+ * but the second dimension is the office now rather than the shift rotation.
+ */
 router.get(
-  '/function-shift',
+  ['/function-site', '/function-shift'],
   asyncHandler(async (req, res) => {
-    res.json(await getFunctionShift(parseRange(req.query as Record<string, unknown>)))
+    res.json(await getFunctionSite(parseRange(req.query as Record<string, unknown>)))
   }),
 )
 
@@ -72,6 +79,51 @@ router.get(
   '/direction',
   asyncHandler(async (req, res) => {
     res.json(await getDirectionMix(parseRange(req.query as Record<string, unknown>)))
+  }),
+)
+
+router.get(
+  '/grades',
+  asyncHandler(async (req, res) => {
+    res.json(await getGradeAnalysis(parseRange(req.query as Record<string, unknown>)))
+  }),
+)
+
+/**
+ * The people behind a matrix cell. Every parameter is optional — with none of
+ * them this is simply the whole range, newest first, which is what the panel
+ * shows before anyone clicks anything.
+ */
+const gradeFlowQuery = rangeQuery.extend({
+  giverGrade: z.string().max(32).optional(),
+  recipientGrade: z.string().max(32).optional(),
+  direction: z.enum(['upward', 'downward', 'peer']).optional(),
+  personId: z.coerce.number().int().positive().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+})
+
+router.get(
+  '/grade-flow',
+  asyncHandler(async (req, res) => {
+    const query = req.query as Record<string, unknown>
+    const cleaned: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(query)) if (v !== '' && v !== undefined) cleaned[k] = v
+    const parsed = gradeFlowQuery.safeParse(cleaned)
+    if (!parsed.success) {
+      throw apiError(400, 'BAD_INPUT', parsed.error.issues[0]?.message ?? 'Invalid filter')
+    }
+    const { giverGrade, recipientGrade, direction, personId, page, pageSize } = parsed.data
+    res.json(
+      await getGradeFlow(parseRange(query), {
+        giverGrade,
+        recipientGrade,
+        direction,
+        personId,
+        page,
+        pageSize,
+      }),
+    )
   }),
 )
 

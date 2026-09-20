@@ -28,7 +28,9 @@ import type {
   FeedFilterOptions,
   FeedItem,
   FlagItem,
-  FunctionShiftSplit,
+  FunctionSiteSplit,
+  GradeAnalysis,
+  GradeFlow,
   MyNominationsResponse,
   NominationItem,
   NominationsPage,
@@ -228,8 +230,8 @@ export const api = {
   // analytics (committee/admin)
   analyticsSummary: (params: QueryParams) =>
     request<AnalyticsSummary>('GET', '/api/analytics/summary', undefined, params),
-  analyticsFunctionShift: (params: QueryParams) =>
-    request<FunctionShiftSplit>('GET', '/api/analytics/function-shift', undefined, params),
+  analyticsFunctionSite: (params: QueryParams) =>
+    request<FunctionSiteSplit>('GET', '/api/analytics/function-site', undefined, params),
   analyticsBehaviours: async (params: QueryParams) =>
     asArray<BehaviourBreakdownRow>(
       await request<unknown>('GET', '/api/analytics/behaviours', undefined, params),
@@ -237,6 +239,10 @@ export const api = {
     ),
   analyticsDirection: (params: QueryParams) =>
     request<DirectionMix>('GET', '/api/analytics/direction', undefined, params),
+  analyticsGrades: (params: QueryParams) =>
+    request<GradeAnalysis>('GET', '/api/analytics/grades', undefined, params),
+  analyticsGradeFlow: (params: QueryParams) =>
+    request<GradeFlow>('GET', '/api/analytics/grade-flow', undefined, params),
   analyticsDarkSpots: async (params: QueryParams) =>
     asArray<DarkSpotRow>(await request<unknown>('GET', '/api/analytics/dark-spots', undefined, params), 'darkSpots'),
   analyticsConcentration: (params: QueryParams) =>
