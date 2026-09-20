@@ -3294,10 +3294,13 @@ h3 { font-size: 15px; font-weight: 600; }
   font-size: 11px;
   color: var(--faint);
 }
+/* Its own column now, so it no longer needs to hang off the grade beside it. */
 .flow-dir {
+  display: inline-block;
   font-style: normal;
   font-weight: 600;
-  margin-left: 6px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 .flow-dir.upward { color: #0f766e; }
 .flow-dir.downward { color: var(--navy-500); }

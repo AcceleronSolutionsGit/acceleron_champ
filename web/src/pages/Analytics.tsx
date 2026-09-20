@@ -714,6 +714,7 @@ function GradeFlowPanel({
                   <th>When</th>
                   <th>Giver</th>
                   <th>Recipient</th>
+                  <th>Direction</th>
                   <th>Behaviour</th>
                   <th>What they did</th>
                 </tr>
@@ -728,17 +729,21 @@ function GradeFlowPanel({
                     </td>
                     <td>
                       <Link to={`/people/${it.recipient.id}`}>{it.recipient.name}</Link>
-                      <span className="flow-meta">
-                        {it.recipient.grade}
-                        <em className={`flow-dir ${it.direction}`}>
-                          {it.direction === 'upward'
-                            ? '↑ upward'
-                            : it.direction === 'downward'
-                              ? '↓ downward'
-                              : it.direction === 'peer'
-                                ? '→ peer'
-                                : '? unmapped'}
-                        </em>
+                      <span className="flow-meta">{it.recipient.grade}</span>
+                    </td>
+                    {/* Direction is a property of the PAIR, not of the recipient.
+                        Sitting under the recipient's grade it read as "this
+                        person's grade is unmapped", which blamed the wrong half
+                        of a row where both sides were equally unmapped. */}
+                    <td>
+                      <span className={`flow-dir ${it.direction}`}>
+                        {it.direction === 'upward'
+                          ? '↑ junior → senior'
+                          : it.direction === 'downward'
+                            ? '↓ senior → junior'
+                            : it.direction === 'peer'
+                              ? '→ peer'
+                              : '? grades not mapped'}
                       </span>
                     </td>
                     <td>
