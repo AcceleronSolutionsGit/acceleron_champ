@@ -105,6 +105,28 @@ function isDbxActive(rec: DbxEmployee): boolean {
   return exit === '' || exit === 'N.A.' || exit.toLowerCase() === 'null'
 }
 
+/**
+ * Tidy an HRMS office location.
+ *
+ * DarwinBox's office_location repeats the city before the state — real values
+ * out of the directory look like "Asansol Asansol- West Bengal" and "Greater
+ * Noida Greater Noida- Uttar Pradesh". On a chart axis or a board footer that
+ * is twice the width for none of the meaning, so a leading repeat is collapsed
+ * and the separator spaced properly:
+ *
+ *     "Asansol Asansol- West Bengal"  →  "Asansol – West Bengal"
+ *
+ * Only an EXACT immediate repeat is touched. A genuine name that happens to
+ * start with a repeated word is left alone, and nothing is dropped from the
+ * far side of the separator, so no two real offices can collapse into one.
+ */
+export function tidyLocation(raw: string): string {
+  const squeezed = raw.replace(/\s+/g, ' ').trim()
+  if (!squeezed) return squeezed
+  const deduped = squeezed.replace(/^(.+?)\s+\1(?=\s|,|-|–|$)/i, '$1')
+  return deduped.replace(/\s*[-–]\s*/g, ' – ').trim()
+}
+
 /** Map a DarwinBox record onto our employees columns (sync-owned fields only). */
 /**
  * Grades we have already complained about this run.
@@ -130,7 +152,7 @@ function mapFields(rec: DbxEmployee, mobile: string, companyCode: string): Parti
   const rawName = String(rec.full_name ?? rec['Full Name'] ?? 'Employee').trim()
   const rawDept = String(rec.function_name ?? rec['Parent Function Name'] ?? 'Unassigned').trim()
   const rawSubTeam = String(rec['Top Department'] ?? '').trim()
-  const rawSite = String(rec.office_location ?? rec['Location'] ?? 'Unassigned').trim()
+  const rawSite = tidyLocation(String(rec.office_location ?? rec['Location'] ?? 'Unassigned'))
   const rawEmail = String(rec.company_email_id ?? rec['Official Email Id'] ?? '').trim().toLowerCase()
   const hrmsUpdatedOn = String(rec['Updated On'] ?? rec.date_of_joining ?? '').trim()
 
@@ -165,6 +187,55 @@ function mapFields(rec: DbxEmployee, mobile: string, companyCode: string): Parti
     hrms_updated_on: hrmsUpdatedOn || null,
     company_code: companyCode || null,
   }
+}
+
+/**
+ * The columns this sync owns. Anything not listed here (language, consent,
+ * manager_id) is set elsewhere and must survive a sync untouched.
+ */
+const SYNCED_COLUMNS = [
+  'name',
+  'function',
+  'sub_team',
+  'shift',
+  'site',
+  'mobile',
+  'email',
+  'employment_type',
+  'level_grade',
+  'active',
+  'hrms_updated_on',
+  'company_code',
+] as const
+
+/**
+ * Has anything the sync owns actually changed?
+ *
+ * This used to be "did DarwinBox bump Updated On", which is a proxy, and a
+ * leaky one — DarwinBox does not touch that field for every edit. The cost
+ * showed up when job_level was being silently flattened to 'L2': correcting
+ * the mapping fixed what NEW rows would get, but every existing employee was
+ * skipped on the next sync as "unchanged" and kept the wrong grade forever.
+ * There was no way to repair the directory short of editing the database by
+ * hand.
+ *
+ * Comparing the mapped values instead means a fix to mapFields() repairs the
+ * whole directory on the next run, and a field DarwinBox edits without
+ * touching its timestamp no longer goes missing. The write it saves is one
+ * cheap UPDATE on a few thousand rows once a night, which was never the
+ * expensive part of this job — the HTTP fetch is.
+ */
+export function hasChanges(current: Partial<Employee>, fields: Partial<Employee>): boolean {
+  for (const col of SYNCED_COLUMNS) {
+    const next = fields[col]
+    if (next === undefined) continue
+    const now = current[col]
+    // Null and empty string are the same absence as far as the directory is
+    // concerned, and would otherwise rewrite the same row every single night.
+    const normalise = (v: unknown) => (v === null || v === undefined ? '' : v)
+    if (normalise(now) !== normalise(next)) return true
+  }
+  return false
 }
 
 /** Basic Auth headers for Darwinbox. */
@@ -235,14 +306,15 @@ async function liveSync(db: Knex): Promise<DirectorySyncResult> {
   const targetCompany = config.darwinbox.companyCode?.trim().toUpperCase()
   console.log(`[darwinbox] fetched ${fetched.length} records. Filter company code: "${targetCompany || 'ALL'}"`)
 
+  /**
+   * Every column the sync owns, so a redundant write can be detected by
+   * comparing values rather than by trusting a timestamp.
+   */
   const existing = (await db('employees').select(
     'id',
     'employee_code',
-    'email',
-    'active',
-    'hrms_updated_on',
-    'company_code',
-  )) as Array<Pick<Employee, 'id' | 'employee_code' | 'email' | 'active' | 'hrms_updated_on'> & { company_code?: string | null }>
+    ...SYNCED_COLUMNS,
+  )) as Array<Pick<Employee, 'id' | 'employee_code'> & Partial<Employee> & { company_code?: string | null }>
 
   const existingByCode = new Map(existing.map((e) => [e.employee_code, e]))
 
@@ -283,16 +355,10 @@ async function liveSync(db: Knex): Promise<DirectorySyncResult> {
     try {
       const current = existingByCode.get(code)
       if (current) {
-        // Compare "Updated On" / joining date with stored value to skip redundant writes
-        const newUpdatedOn = (fields.hrms_updated_on ?? '').trim()
-        const oldUpdatedOn = (current.hrms_updated_on ?? '').trim()
-
-        if (newUpdatedOn && newUpdatedOn === oldUpdatedOn && current.active === fields.active) {
-          // No change since last sync — skip update
+        if (!hasChanges(current, fields)) {
           unchanged += 1
           continue
         }
-
         await db('employees').where({ id: current.id }).update({ ...fields, updated_at: now })
       } else {
         await db('employees').insert({

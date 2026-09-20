@@ -197,22 +197,81 @@ export function TrendLine({
 
 // ── Grouped columns: given vs received (one hue, two shades) ─────────────────
 
+/**
+ * Given vs received per group — HORIZONTAL.
+ *
+ * Vertical columns put the group name on the x-axis, where a real directory
+ * ("General Management & Operations", "Asansol Asansol- West Bengal") either
+ * overlaps its neighbours into mush or gets clipped. Recharts will not wrap
+ * or rotate them usefully either. Turning the chart on its side gives every
+ * name a full line of its own, and a category axis that grows downward costs
+ * nothing — the card scrolls, whereas a horizontal axis cannot.
+ */
 export function GivenReceivedBars({
   data,
 }: {
   data: { name: string; given: number; received: number }[]
 }): React.ReactElement {
+  if (data.length === 0) {
+    return <div className="matrix-empty">No groups in this range</div>
+  }
+  // Two bars plus breathing room per row, floored so one or two groups still
+  // look like a chart rather than a stripe.
+  const height = Math.max(150, data.length * 46 + 28)
+  // Long names get a wider axis, capped so the bars never lose the plot area.
+  const longest = data.reduce((n, d) => Math.max(n, d.name.length), 0)
+  const axisWidth = Math.min(210, Math.max(96, longest * 6.6))
+
   return (
-    <ResponsiveContainer width="100%" height={250}>
-      <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -18 }} barGap={2} barCategoryGap="28%">
-        <CartesianGrid stroke={CHART_GRID} vertical={false} />
-        <XAxis dataKey="name" tick={AXIS_TICK} axisLine={AXIS_LINE} tickLine={false} interval={0} />
-        <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart
+        data={data}
+        layout="vertical"
+        margin={{ top: 4, right: 40, bottom: 0, left: 4 }}
+        barGap={2}
+        barCategoryGap="26%"
+      >
+        <CartesianGrid stroke={CHART_GRID} horizontal={false} />
+        <XAxis type="number" tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
+        <YAxis
+          type="category"
+          dataKey="name"
+          width={axisWidth}
+          tick={<TruncatedTick max={Math.floor(axisWidth / 6.2)} />}
+          axisLine={AXIS_LINE}
+          tickLine={false}
+          interval={0}
+        />
         <Tooltip content={<ChartTip />} cursor={HOVER_CURSOR} />
-        <Bar dataKey="given" name="Given" fill={CHART_NAVY_LIGHT} barSize={16} radius={[4, 4, 0, 0]} isAnimationActive={false} />
-        <Bar dataKey="received" name="Received" fill={CHART_NAVY} barSize={16} radius={[4, 4, 0, 0]} isAnimationActive={false} />
+        <Bar dataKey="given" name="Given" fill={CHART_NAVY_LIGHT} barSize={11} radius={[0, 3, 3, 0]} isAnimationActive={false} />
+        <Bar dataKey="received" name="Received" fill={CHART_NAVY} barSize={11} radius={[0, 3, 3, 0]} isAnimationActive={false} />
       </BarChart>
     </ResponsiveContainer>
+  )
+}
+
+/**
+ * A category tick that ellipsises rather than overflowing into the plot.
+ *
+ * The full name is in the <title>, and in the "View data" table underneath
+ * every chart card — so nothing is only available on hover.
+ */
+function TruncatedTick(props: {
+  x?: number
+  y?: number
+  payload?: { value?: string | number }
+  max?: number
+}): React.ReactElement {
+  const { x = 0, y = 0, payload, max = 24 } = props
+  const full = String(payload?.value ?? '')
+  const text = full.length > max ? `${full.slice(0, max - 1).trimEnd()}…` : full
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <title>{full}</title>
+      <text x={-6} y={0} dy={4} textAnchor="end" fill={CHART_TEXT} fontSize={12}>
+        {text}
+      </text>
+    </g>
   )
 }
 
