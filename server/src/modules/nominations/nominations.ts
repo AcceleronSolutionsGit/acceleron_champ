@@ -596,6 +596,7 @@ export async function listForCommittee(filters: CommitteeFilters): Promise<Commi
     rejected: 0,
     withdrawn: 0,
     removed: 0,
+    archived: 0,
   }
   for (const r of countRows) counts[r.status] = Number(r.c)
 

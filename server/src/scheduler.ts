@@ -13,6 +13,7 @@ import { runDirectorySync } from './modules/sync/darwinbox'
 import { nightlySweep } from './modules/flags/flagScan'
 import { sendWeeklyDigest } from './modules/digest/digest'
 import { sendInactivityReminders } from './modules/conversation/reminder'
+import { archiveOldNominations } from './modules/nominations/archive'
 
 let started = false
 
@@ -70,6 +71,7 @@ export function startScheduler(): void {
   started = true
   scheduleJob('darwinbox-sync', config.cron.darwinboxSync, runDirectorySync)
   scheduleJob('flag-scan', config.cron.flagScan, nightlySweep)
+  scheduleJob('archive-nominations', config.cron.archiveNominations, archiveOldNominations)
   scheduleJob('weekly-digest', config.cron.weeklyDigest, sendWeeklyDigest)
   // Minute-resolution sweep for the single mid-flow inactivity reminder. It is
   // a cheap indexed range query over conversation_state, which only ever holds

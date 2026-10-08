@@ -1,16 +1,13 @@
 /**
- * Indian financial-year quarters — the calendar the appraisal cycle actually
- * runs on.
+ * Calendar-year quarters — the calendar the appraisal cycle actually runs on.
  *
- *   Q1  Apr–Jun      Q2  Jul–Sep      Q3  Oct–Dec      Q4  Jan–Mar
+ *   Q1  Jan–Mar      Q2  Apr–Jun      Q3  Jul–Sep      Q4  Oct–Dec
  *
- * A quarter is identified by its FY START year, never by the calendar year it
- * happens to fall in: Jan–Mar 2027 is Q4 of FY 2026-27, so its code is
- * 'FY2026-Q4'. Getting this backwards is the classic Indian-FY bug — every
- * January the quarter belongs to the year that started nine months earlier.
+ * A quarter is identified by its calendar year: Jan–Mar 2026 is Q1 of 2026, so its code is
+ * '2026-Q1'.
  *
- * Codes sort lexicographically in chronological order ('FY2026-Q1' <
- * 'FY2026-Q4' < 'FY2027-Q1'), which is what lets the API order and filter on
+ * Codes sort lexicographically in chronological order ('2026-Q1' <
+ * '2026-Q4' < '2027-Q1'), which is what lets the API order and filter on
  * the column without a join or a computed key.
  *
  * Boundaries follow the codebase convention in db/time.ts: computed in IST,
@@ -27,14 +24,14 @@ dayjs.extend(timezone)
 export type QuarterIndex = 1 | 2 | 3 | 4
 
 export interface Quarter {
-  /** Stable identifier, e.g. 'FY2026-Q2'. Sorts chronologically. */
+  /** Stable identifier, e.g. '2026-Q2'. Sorts chronologically. */
   code: string
   index: QuarterIndex
-  /** Year the financial year STARTED — 2026 for FY 2026-27. */
-  fyStartYear: number
-  /** 'Q2 FY 2026-27' */
+  /** Year the quarter falls in — 2026. */
+  year: number
+  /** 'Q2 2026' */
   label: string
-  /** 'Jul–Sep 2026' — the months the evidence should describe. */
+  /** 'Apr–Jun 2026' — the months the evidence should describe. */
   months: string
   /** First instant of the quarter, IST, as UTC ISO. */
   startIso: string
@@ -42,34 +39,31 @@ export interface Quarter {
   endIso: string
 }
 
-const CODE_RE = /^FY(\d{4})-Q([1-4])$/
+const CODE_RE = /^(\d{4})-Q([1-4])$/
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-/** Calendar month (0-based) on which each FY quarter starts, and in which
- *  calendar year relative to the FY start year. */
+/** Calendar month (0-based) on which each quarter starts. */
 const QUARTER_START = {
-  1: { month: 3, yearOffset: 0 }, // Apr
-  2: { month: 6, yearOffset: 0 }, // Jul
-  3: { month: 9, yearOffset: 0 }, // Oct
-  4: { month: 0, yearOffset: 1 }, // Jan of the NEXT calendar year
+  1: { month: 0 }, // Jan
+  2: { month: 3 }, // Apr
+  3: { month: 6 }, // Jul
+  4: { month: 9 }, // Oct
 } as const
 
-export function buildQuarter(fyStartYear: number, index: QuarterIndex): Quarter {
-  const { month, yearOffset } = QUARTER_START[index]
-  const calendarYear = fyStartYear + yearOffset
+export function buildQuarter(year: number, index: QuarterIndex): Quarter {
+  const { month } = QUARTER_START[index]
   const start = dayjs.tz(
-    `${calendarYear}-${String(month + 1).padStart(2, '0')}-01 00:00:00`,
+    `${year}-${String(month + 1).padStart(2, '0')}-01 00:00:00`,
     IST,
   )
   const end = start.add(3, 'month').subtract(1, 'millisecond')
-  const fyEndShort = String((fyStartYear + 1) % 100).padStart(2, '0')
   return {
-    code: `FY${fyStartYear}-Q${index}`,
+    code: `${year}-Q${index}`,
     index,
-    fyStartYear,
-    label: `Q${index} FY ${fyStartYear}-${fyEndShort}`,
-    months: `${MONTH_NAMES[month]}–${MONTH_NAMES[(month + 2) % 12]} ${calendarYear}`,
+    year,
+    label: `Q${index} ${year}`,
+    months: `${MONTH_NAMES[month]}–${MONTH_NAMES[(month + 2) % 12]} ${year}`,
     startIso: start.utc().toISOString(),
     endIso: end.utc().toISOString(),
   }
@@ -79,21 +73,31 @@ export function buildQuarter(fyStartYear: number, index: QuarterIndex): Quarter 
 export function quarterFor(ref?: string | Date): Quarter {
   const d = dayjs(ref).tz(IST)
   const month = d.month() // 0-based
-  // Jan/Feb/Mar belong to the financial year that began the PREVIOUS April.
-  const fyStartYear = month >= 3 ? d.year() : d.year() - 1
-  const index: QuarterIndex = month >= 3 ? ((Math.floor((month - 3) / 3) + 1) as QuarterIndex) : 4
-  return buildQuarter(fyStartYear, index)
+  const year = d.year()
+  const index = (Math.floor(month / 3) + 1) as QuarterIndex
+  return buildQuarter(year, index)
 }
 
 /** The quarter immediately before `q`. */
 export function previousQuarter(q: Quarter): Quarter {
   return q.index === 1
-    ? buildQuarter(q.fyStartYear - 1, 4)
-    : buildQuarter(q.fyStartYear, (q.index - 1) as QuarterIndex)
+    ? buildQuarter(q.year - 1, 4)
+    : buildQuarter(q.year, (q.index - 1) as QuarterIndex)
 }
 
 /** Parse a stored code back into a Quarter, or null if it is not one. */
 export function parseQuarterCode(code: string): Quarter | null {
+  // Gracefully parse old FY codes if any are in the DB during transition
+  const oldMatch = /^FY(\d{4})-Q([1-4])$/.exec(code)
+  if (oldMatch) {
+    const fyStart = Number(oldMatch[1])
+    const fyQ = Number(oldMatch[2])
+    if (fyQ === 4) return buildQuarter(fyStart + 1, 1)
+    if (fyQ === 1) return buildQuarter(fyStart, 2)
+    if (fyQ === 2) return buildQuarter(fyStart, 3)
+    if (fyQ === 3) return buildQuarter(fyStart, 4)
+  }
+
   const m = CODE_RE.exec(code)
   if (!m) return null
   return buildQuarter(Number(m[1]), Number(m[2]) as QuarterIndex)

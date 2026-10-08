@@ -65,7 +65,7 @@ export interface Flag {
 
 // ── Quarterly self-nomination ─────────────────────────────────────────────────
 
-export type NominationStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'removed'
+export type NominationStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'removed' | 'archived'
 
 /** Raw `nominations` row. Timestamps are ISO-8601 UTC strings. */
 export interface Nomination {

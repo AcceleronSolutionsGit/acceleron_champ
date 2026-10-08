@@ -307,13 +307,13 @@ export interface AppSettings {
 
 // ── Quarterly self-nomination ────────────────────────────────────────────────
 
-export type NominationStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'removed'
+export type NominationStatus = 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'removed' | 'archived'
 
-/** Indian financial-year quarter: Q1 = Apr–Jun. `code` looks like 'FY2026-Q2'. */
+/** Calendar-year quarter: Q1 = Jan–Mar. `code` looks like '2026-Q1'. */
 export interface Quarter {
   code: string
   index: 1 | 2 | 3 | 4
-  fyStartYear: number
+  year: number
   label: string
   months: string
   startIso: string

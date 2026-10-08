@@ -41,6 +41,11 @@ const STATUS_COPY: Record<NominationStatus, { label: string; tone: string; hint:
     tone: 'removed',
     hint: 'The R&R committee removed this from the pool. The reason is below. This quarter is now closed to you — speak to HR if you think that is wrong.',
   },
+  archived: {
+    label: 'Archived',
+    tone: 'archived',
+    hint: 'This nomination is from a past quarter and has been archived.',
+  },
 }
 
 /**

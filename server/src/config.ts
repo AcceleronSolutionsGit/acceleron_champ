@@ -183,6 +183,7 @@ function buildConfig() {
     cron: {
       darwinboxSync: env.SYNC_CRON ?? '30 2 * * *',
       flagScan: env.FLAGSCAN_CRON ?? '15 3 * * *',
+      archiveNominations: env.ARCHIVE_CRON ?? '45 3 * * *',
       weeklyDigest: env.DIGEST_CRON ?? '0 9 * * 1',
       /** Minute-resolution sweep — the reminder is only as punctual as this. */
       flowReminder: env.REMINDER_CRON ?? '* * * * *',
