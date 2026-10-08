@@ -39,6 +39,7 @@ const STATUS_TABS: { id: '' | NominationStatus; label: string }[] = [
   { id: 'rejected', label: 'Not approved' },
   { id: 'withdrawn', label: 'Withdrawn' },
   { id: 'removed', label: 'Removed' },
+  { id: 'archived', label: 'Archived' },
   { id: '', label: 'All' },
 ]
 
