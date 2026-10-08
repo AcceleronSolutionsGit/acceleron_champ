@@ -103,6 +103,23 @@ export function parseQuarterCode(code: string): Quarter | null {
   return buildQuarter(Number(m[1]), Number(m[2]) as QuarterIndex)
 }
 
+/** 
+ * Returns the legacy FY string for a given calendar code, 
+ * so that queries can match existing rows in the database.
+ * e.g., '2026-Q3' -> 'FY2026-Q2'
+ */
+export function toLegacyQuarterCode(calendarCode: string): string | null {
+  const m = CODE_RE.exec(calendarCode)
+  if (!m) return null
+  const year = Number(m[1])
+  const q = Number(m[2])
+  if (q === 1) return `FY${year - 1}-Q4`
+  if (q === 2) return `FY${year}-Q1`
+  if (q === 3) return `FY${year}-Q2`
+  if (q === 4) return `FY${year}-Q3`
+  return null
+}
+
 /**
  * Which quarters may be nominated for right now.
  *

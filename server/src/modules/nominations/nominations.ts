@@ -27,7 +27,7 @@ import {
   PersonLite,
 } from '../../types'
 import { getSettings } from '../settings'
-import { isQuarterOpen, openQuarters, parseQuarterCode, Quarter } from './quarter'
+import { isQuarterOpen, openQuarters, parseQuarterCode, Quarter, toLegacyQuarterCode } from './quarter'
 
 export type NominationResult<T> =
   | { ok: true; value: T }
@@ -287,8 +287,10 @@ export async function submitNomination(input: SubmitInput): Promise<NominationRe
     )
   }
 
+  const legacy = toLegacyQuarterCode(quarter.code)
   const existing = (await db('nominations')
-    .where({ employee_id: input.employeeId, quarter: quarter.code })
+    .where({ employee_id: input.employeeId })
+    .whereIn('quarter', legacy ? [quarter.code, legacy] : [quarter.code])
     .first()) as Nomination | undefined
 
   if (existing && existing.status === 'approved') {
@@ -548,7 +550,14 @@ export interface CommitteeView {
 }
 
 function applyFilters(builder: Knex.QueryBuilder, f: CommitteeFilters): Knex.QueryBuilder {
-  if (f.quarter) builder.where('n.quarter', f.quarter)
+  if (f.quarter) {
+    const legacy = toLegacyQuarterCode(f.quarter)
+    if (legacy) {
+      builder.whereIn('n.quarter', [f.quarter, legacy])
+    } else {
+      builder.where('n.quarter', f.quarter)
+    }
+  }
   if (f.status) builder.where('n.status', f.status)
   if (f.behaviourId) builder.where('n.behaviour_id', f.behaviourId)
   if (f.function) builder.where('e.function', f.function)
