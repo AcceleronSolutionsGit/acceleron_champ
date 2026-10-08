@@ -138,7 +138,7 @@ export function openQuarters(graceDays: number, ref?: string | Date): Quarter[] 
   const now = dayjs(ref).valueOf()
   const graceEndsAt = Date.parse(previous.endIso) + graceDays * 24 * 3_600_000
   if (now <= graceEndsAt) quarters.push(previous)
-  return quarters
+  return quarters.filter(q => q.year === 2026)
 }
 
 /** Is `code` currently open for filing? */
@@ -154,7 +154,9 @@ export function recentQuarters(count: number, ref?: string | Date): Quarter[] {
   const out: Quarter[] = []
   let q = quarterFor(ref)
   for (let i = 0; i < count; i += 1) {
-    out.push(q)
+    if (q.year === 2026) {
+      out.push(q)
+    }
     q = previousQuarter(q)
   }
   return out
